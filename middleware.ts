@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { COOKIE_NAME, verifyAuthToken } from "./lib/auth";
 
-const PRIVATE_PATHS = ["/recruiting", "/candidates", "/resume-upload", "/ai-match", "/resume-match", "/data-quality"];
+// The landing page is public. Everything else is an authenticated recruiter/admin area.
+const PUBLIC_PAGE_PATHS = ["/", "/login"];
+const PUBLIC_API_PATHS = ["/api/login", "/api/logout"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isApi = pathname.startsWith("/api/");
-  const isPrivatePage = PRIVATE_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  const isPublicPage = PUBLIC_PAGE_PATHS.some(
+    (path) => pathname === path || (path !== "/" && pathname.startsWith(`${path}/`))
+  );
+  const isPublicApi = PUBLIC_API_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
-  if (!isPrivatePage && (!isApi || pathname === "/api/login" || pathname === "/api/logout")) {
+  // Public landing page and authentication endpoints remain accessible without login.
+  if ((isPublicPage && !isApi) || isPublicApi) {
     return NextResponse.next();
   }
 
@@ -25,5 +31,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/recruiting/:path*", "/candidates/:path*", "/resume-upload/:path*", "/ai-match/:path*", "/resume-match/:path*", "/data-quality/:path*", "/api/:path*"],
+  // Apply authentication to every application route, while excluding Next.js internals and static assets.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
