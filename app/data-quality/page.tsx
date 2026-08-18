@@ -1,0 +1,20 @@
+"use client";
+import {useMemo,useState} from "react";
+
+type Item={company:string;category:string;y2025:string;y2024:string;basis:"별도"|"연결"|"기업재무"|"미확인";note:string};
+const items:Item[]=[
+{company:"LG생활건강",category:"대형 종합 뷰티",y2025:"304,073억원",y2024:"353,485억원",basis:"별도",note:"공시 별도매출 기준"},
+{company:"아모레퍼시픽",category:"대형 종합 뷰티",y2025:"265,372.6억원",y2024:"241,378.6억원",basis:"별도",note:"공시 별도매출 기준"},
+{company:"에이피알",category:"성장 인디 브랜드",y2025:"152,829.6억원",y2024:"72,300.1억원",basis:"별도",note:"공시 별도매출 기준"},
+{company:"구다이글로벌",category:"성장 인디 브랜드",y2025:"4,564.6억원",y2024:"3,237.0억원",basis:"별도",note:"연결 1조4,718억원과 구분"},
+{company:"브이티",category:"성장 인디 브랜드",y2025:"38,105억원",y2024:"31,930억원",basis:"별도",note:"공시 별도매출 기준"},
+{company:"달바글로벌",category:"성장 인디 브랜드",y2025:"50,259억원",y2024:"30,302억원",basis:"별도",note:"재무정보 기준 추가 교차검증 권장"},
+{company:"더파운더즈",category:"성장 인디 브랜드",y2025:"-",y2024:"-",basis:"연결",note:"연결매출만 확인되어 순위 계산에서 제외"},
+{company:"비나우",category:"성장 인디 브랜드",y2025:"3,165.79억원",y2024:"2,658.10억원",basis:"기업재무",note:"공개 기업재무 수치; 별도 기준 추가 확인 필요"},
+{company:"토리든",category:"성장 인디 브랜드",y2025:"-",y2024:"-",basis:"연결",note:"연결매출만 확인되어 순위 계산에서 제외"},
+{company:"코스맥스",category:"ODM",y2025:"152,641.5억원",y2024:"135,766억원",basis:"별도",note:"공시 별도매출 기준"},
+{company:"한국콜마",category:"ODM",y2025:"119,275.2억원",y2024:"105,966.9억원",basis:"별도",note:"공시 별도매출 기준"},
+{company:"올리브영",category:"플랫폼·유통",y2025:"583,350억원",y2024:"478,990억원",basis:"별도",note:"공개 재무자료 기준"}
+];
+const colors={별도:"badge good",연결:"badge warn",기업재무:"badge info",미확인:"badge bad"};
+export default function DataQuality(){const[b,setB]=useState("전체");const v=useMemo(()=>items.filter(x=>b==="전체"||x.basis===b),[b]);const counts={별도:items.filter(x=>x.basis==="별도").length,연결:items.filter(x=>x.basis==="연결").length,기업재무:items.filter(x=>x.basis==="기업재무").length,미확인:items.filter(x=>x.basis==="미확인").length};return <main style={{maxWidth:1200,margin:"0 auto",padding:"48px 24px",fontFamily:"Arial, sans-serif"}}><div style={{color:"#666",fontSize:13,letterSpacing:2}}>2026 K-BEAUTY INDUSTRY LANDSCAPE · V7</div><h1 style={{fontSize:42,margin:"12px 0"}}>매출 데이터 품질관리</h1><p style={{color:"#666",lineHeight:1.7}}>별도·연결·기업재무 수치를 섞지 않고 출처 기준을 명확히 표시하는 감사 화면입니다. 금융감독원은 사업보고서의 재무사항에 연결재무제표를 기재하면서 별도재무제표도 포함하도록 안내합니다.</p><div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,margin:"28px 0"}}>{(["별도","연결","기업재무","미확인"] as const).map(k=><button key={k} onClick={()=>setB(k)} style={{padding:20,textAlign:"left",border:"1px solid #ddd",borderRadius:14,background:b===k?"#f3f3f3":"white",cursor:"pointer"}}><div style={{fontSize:13,color:"#777"}}>{k}</div><strong style={{fontSize:28}}>{counts[k]}</strong><div style={{fontSize:12,color:"#888"}}>기업</div></button>)}</div><div style={{overflowX:"auto",border:"1px solid #e5e5e5",borderRadius:16}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:14}}><thead><tr style={{background:"#f7f7f7"}}>{["기업","산업군","2025","2024","기준","판정 메모"].map(x=><th key={x} style={{padding:14,textAlign:"left",borderBottom:"1px solid #ddd"}}>{x}</th>)}</tr></thead><tbody>{v.map(x=><tr key={x.company}><td style={{padding:14,fontWeight:700,borderBottom:"1px solid #eee"}}>{x.company}</td><td style={{padding:14,borderBottom:"1px solid #eee"}}>{x.category}</td><td style={{padding:14,borderBottom:"1px solid #eee"}}>{x.y2025}</td><td style={{padding:14,borderBottom:"1px solid #eee"}}>{x.y2024}</td><td style={{padding:14,borderBottom:"1px solid #eee"}}><span className={colors[x.basis]} style={{padding:"5px 9px",borderRadius:999}}>{x.basis}</span></td><td style={{padding:14,borderBottom:"1px solid #eee",color:"#666"}}>{x.note}</td></tr>)}</tbody></table></div><section style={{marginTop:28,padding:22,border:"1px solid #ddd",borderRadius:16}}><h2>운영 원칙</h2><ol style={{lineHeight:1.9,color:"#444"}}><li>별도매출만 동일 기준 순위·성장률 계산에 사용합니다.</li><li>연결매출은 별도매출과 분리해 표시합니다.</li><li>기업재무 서비스 수치는 출처와 기준이 확인될 때까지 별도매출로 단정하지 않습니다.</li><li>확인되지 않은 숫자는 0이 아니라 ‘확인 필요’로 처리합니다.</li></ol></section><p style={{marginTop:24,color:"#777",fontSize:13}}>V7 · Data Quality Audit · 금융감독원 공시 기준을 참고한 내부 관리 화면</p></main>}
