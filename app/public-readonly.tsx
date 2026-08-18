@@ -1,6 +1,6 @@
 "use client";
 
-export default function PublicReadonly({ children }: { children: React.ReactNode; readonly: boolean }) {
+export default function PublicReadonly({ children, readonly: _readonly }: { children: React.ReactNode; readonly: boolean }) {
   return (
     <div style={{ position: "relative" }}>
       {children}
