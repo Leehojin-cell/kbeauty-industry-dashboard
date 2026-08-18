@@ -1,20 +1,80 @@
 "use client";
-import {useMemo,useState} from "react";
 
-type Candidate={name:string;role:string;years:number;skills:string[];markets:string[]};
-type Company={name:string;roles:string;markets:string;reason:string};
-const candidates:Candidate[]=[
-{name:"후보자 A",role:"해외영업",years:3,skills:["B2B 해외영업","Distributor","LinkedIn lead generation","OEM/ODM"],markets:["미국","유럽","CIS","동남아","중동"]},
-{name:"후보자 B",role:"글로벌마케팅",years:7,skills:["브랜드마케팅","D2C","이커머스","퍼포먼스마케팅"],markets:["미국","일본"]},
-{name:"후보자 C",role:"생산기획/SCM",years:12,skills:["생산기획","SCM","SAP","품질","TPM"],markets:["한국","미국","중국"]}
-];
-const companies:Company[]=[
-{name:"에이피알",roles:"글로벌영업, 글로벌마케팅, 이커머스, 상품기획",markets:"미국·일본·중국",reason:"글로벌 D2C와 해외 채널 확장"},
-{name:"달바글로벌",roles:"글로벌영업, 브랜드마케팅, 이커머스, MD",markets:"미국·일본·유럽",reason:"북미·유럽·일본 중심 글로벌 사업 확대"},
-{name:"브이티",roles:"해외영업, 글로벌마케팅, 브랜드마케팅, 상품기획",markets:"일본·미국·유럽",reason:"글로벌 채널과 리들샷 중심 성장"},
-{name:"아모레퍼시픽",roles:"글로벌영업, 브랜드마케팅, 상품기획, 디지털마케팅",markets:"북미·일본·중국",reason:"글로벌 브랜드 포트폴리오 확장"},
-{name:"코스맥스",roles:"생산기획, 해외영업, R&D, 품질, SCM",markets:"미국·중국·동남아",reason:"글로벌 ODM 고객·생산 대응"},
-{name:"한국콜마",roles:"R&D, 생산, 품질, 해외영업, SCM",markets:"미국·중국·북미",reason:"글로벌 ODM·R&D·품질 운영"}
-];
-function analyze(c:Candidate,co:Company){const words=co.roles.split(/[,·]/).map(x=>x.trim()).filter(Boolean);const role=words.some(w=>c.role.includes(w)||c.skills.some(s=>s.includes(w)||w.includes(s)));const market=co.markets.split("·").some(m=>c.markets.includes(m));const senior=c.years>=8;let score=45+(role?30:0)+(market?15:0)+(senior?10:0);score=Math.min(99,score);const strengths=[role?"직무·핵심역량이 채용수요와 직접 연결됩니다.":"현재 직무와 채용수요의 직접 일치도가 낮습니다.",market?"대상 시장 경험이 있습니다.":"대상 시장 경험을 추가 확인해야 합니다.",senior?"경력 연차가 중견·리더급 수요에 유리합니다.":"대리급·실무형 포지션에서 활용도가 높습니다."];const gaps=[];if(!role)gaps.push("채용 직무와 직접 연결되는 프로젝트 확인 필요");if(!market)gaps.push("미주·일본 등 대상 시장 경험 확인 필요");if(!senior)gaps.push("리더십·조직관리 경험은 추가 확인 필요");return{score,strengths,gaps};}
-export default function AiMatch(){const[candidate,setCandidate]=useState(candidates[0].name),[company,setCompany]=useState(companies[0].name),[copied,setCopied]=useState(false);const c=candidates.find(x=>x.name===candidate)??candidates[0];const co=companies.find(x=>x.name===company)??companies[0];const a=useMemo(()=>analyze(c,co),[c,co]);const level=a.score>=80?"강력 추천":a.score>=65?"검토 추천":"보류";const letter=`${co.name} ${co.roles.split(",")[0]} 포지션에 ${c.name} 후보자를 추천드립니다.\n\n추천 적합도는 ${a.score}%로 판단됩니다. ${a.strengths[0]} ${a.strengths[1]}\n\n특히 ${c.years}년의 ${c.role} 경험과 ${c.skills.slice(0,3).join(", ")} 역량이 ${co.name}의 ${co.reason}에 활용될 수 있습니다.\n\n다만 ${a.gaps.length?a.gaps.join(", "):"핵심 보완사항이 크지 않습니다."}에 대해서는 인터뷰 단계에서 확인을 권장합니다.`;const copy=async()=>{await navigator.clipboard?.writeText(letter);setCopied(true);setTimeout(()=>setCopied(false),1200)};return <main className="page"><header className="hero"><div><div className="eyebrow">2026 K-BEAUTY · V10</div><h1>AI 후보자 추천 워크스페이스</h1><p>후보자와 기업의 직무·시장·경력을 분석해 추천 근거와 인재추천 문안을 만듭니다.</p></div></header><section className="notice"><b>현재 버전은 AI API 없이 동작하는 규칙 기반 추천 엔진입니다.</b> 실제 OpenAI 모델을 연결하면 이 화면의 분석 문장을 더 정교하게 생성할 수 있습니다. 현재 점수는 참고용이며 채용 결정을 대신하지 않습니다.</section><section className="panel"><div className="addbox"><div><label>후보자</label><select value={candidate} onChange={e=>setCandidate(e.target.value)}>{candidates.map(x=><option key={x.name}>{x.name}</option>)}</select></div><div><label>추천 기업</label><select value={company} onChange={e=>setCompany(e.target.value)}>{companies.map(x=><option key={x.name}>{x.name}</option>)}</select></div></div><div className="cards"><div className="card"><span>추천 적합도</span><b>{a.score}%</b></div><div className="card"><span>판정</span><b>{level}</b></div><div className="card"><span>후보자</span><b>{c.years}년</b></div><div className="card"><span>기업 수요</span><b>매칭 분석</b></div></div></section><section className="analysis-grid"><div className="panel"><h2>추천 근거</h2><p className="sub">{c.name} → {co.name}</p><div className="ranklist">{a.strengths.map((x,i)=><div className="rankrow" key={i}><b>{i+1}</b><span>{x}</span></div>)}</div><h2 style={{marginTop:24}}>보완·확인 사항</h2><div className="ranklist">{a.gaps.length?a.gaps.map((x,i)=><div className="rankrow" key={i}><b>!</b><span>{x}</span></div>):<div className="rankrow"><span>추가 확인사항 없음</span></div>}</div></div><div className="panel"><h2>후보자 프로필</h2><p><b>{c.role}</b> · 경력 {c.years}년</p><p style={{marginTop:10}}>핵심역량: {c.skills.join(" · ")}</p><p style={{marginTop:10}}>시장: {c.markets.join(" · ")}</p><h2 style={{marginTop:28}}>기업 수요</h2><p>주요 직무: {co.roles}</p><p style={{marginTop:10}}>시장: {co.markets}</p><p style={{marginTop:10}}>채용 배경: {co.reason}</p></div></section><section className="panel"><div className="toolbar"><div><h2>인재추천 문안</h2><p className="sub">기업 담당자에게 보낼 수 있도록 자동 작성한 1차 초안입니다.</p></div><button className="btn dark" onClick={copy}>{copied?"복사 완료":"문안 복사"}</button></div><div style={{whiteSpace:"pre-wrap",lineHeight:1.8,background:"#f7f9fc",borderRadius:12,padding:18,fontSize:14}}>{letter}</div></section><footer>V10 · AI 후보자 추천 · 추천 근거 · 보완사항 · 인재추천 문안</footer></main>}
+import { useEffect, useMemo, useState } from "react";
+import { Candidate, companies, seedCandidates } from "../../lib/recruiting-data";
+
+type AIItem = { company: string; score: number; verdict: string; why: string[]; strengths: string[]; gaps: string[]; role: string; market: string; recruiter_note: string };
+type AIResult = { candidate_summary: string; recommended_role: string; recommended_market: string; top_recommendations: AIItem[]; resume_improvements: string[]; model?: string };
+const CANDIDATE_KEY = "kbeauty_candidates_v1";
+const RESUME_KEY = "kbeauty_resume_profile";
+
+export default function AiMatch() {
+  const [candidates, setCandidates] = useState<Candidate[]>(seedCandidates);
+  const [selectedCandidate, setSelectedCandidate] = useState("");
+  const [companyName, setCompanyName] = useState("전체 기업");
+  const [result, setResult] = useState<AIResult | null>(null);
+  const [resumeText, setResumeText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    try {
+      const savedCandidates = localStorage.getItem(CANDIDATE_KEY);
+      const list: Candidate[] = savedCandidates ? JSON.parse(savedCandidates) : seedCandidates;
+      setCandidates(list);
+      if (list[0]) setSelectedCandidate(list[0].id);
+      const savedResume = localStorage.getItem(RESUME_KEY);
+      if (savedResume) {
+        const data = JSON.parse(savedResume);
+        setResumeText(data.resumeText || "");
+        if (data.ai) setResult(data.ai);
+      }
+    } catch {}
+  }, []);
+
+  const selected = useMemo(() => candidates.find((candidate) => candidate.id === selectedCandidate) ?? candidates[0], [candidates, selectedCandidate]);
+  const selectedCompany = companies.find((company) => company.name === companyName);
+
+  function candidateText() {
+    if (!selected) return resumeText;
+    return selected.resumeText || `${selected.name}\n현재 회사: ${selected.company}\n현재 직무: ${selected.role}\n경력: ${selected.years}년\n핵심역량: ${selected.skills.join(", ")}\n시장 경험: ${selected.markets.join(", ")}\n목표 기업: ${selected.target}\n추천 포인트: ${selected.note}`;
+  }
+
+  async function runMatch() {
+    const resume = candidateText().trim();
+    if (!resume) { setMessage("후보자 정보 또는 이력서가 없습니다. 먼저 이력서 업로드를 실행하세요."); return; }
+    setBusy(true); setMessage("");
+    try {
+      const targetCompanies = selectedCompany ? [selectedCompany] : companies;
+      const response = await fetch("/api/ai-match", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resume, companies: targetCompanies }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "AI 매칭에 실패했습니다.");
+      setResult(data);
+      if (!selectedCompany) localStorage.setItem(RESUME_KEY, JSON.stringify({ fileName: "AI 매칭", resumeText: resume, ai: data, savedAt: new Date().toISOString() }));
+      setMessage("AI 매칭이 완료되었습니다.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "AI 매칭 중 오류가 발생했습니다."); }
+    finally { setBusy(false); }
+  }
+
+  async function copy(text: string) { await navigator.clipboard?.writeText(text); setMessage("복사했습니다."); }
+
+  return <main className="page">
+    <header className="hero"><div><div className="eyebrow">2026 K-BEAUTY · V15 AI MATCH</div><h1>AI 후보자 ↔ 기업 매칭</h1><p>후보자의 실제 이력서와 기업 채용수요를 AI로 비교해 추천도·근거·보완점·고객사 추천문안을 만듭니다.</p></div></header>
+    <section className="notice"><b>관리자 전용 기능입니다.</b> 이력서 업로드에서 저장한 후보자와 후보자 DB를 바로 불러와 실제 OpenAI API 분석을 실행할 수 있습니다.</section>
+    <section className="panel">
+      <div className="addbox">
+        <div><label>후보자</label><select value={selectedCandidate} onChange={(e) => setSelectedCandidate(e.target.value)}>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.role}</option>)}</select></div>
+        <div><label>기업</label><select value={companyName} onChange={(e) => setCompanyName(e.target.value)}><option value="전체 기업">전체 기업</option>{companies.map((company) => <option key={company.name}>{company.name}</option>)}</select></div>
+      </div>
+      <div className="cards"><div className="card"><span>후보자</span><b>{selected?.name || "없음"}</b></div><div className="card"><span>경력</span><b>{selected?.years || 0}년</b></div><div className="card"><span>대상</span><b>{selectedCompany?.name || `${companies.length}개 기업`}</b></div><div className="card"><span>AI 상태</span><b>{busy ? "분석 중" : "대기"}</b></div></div>
+      <button className="btn dark" onClick={runMatch} disabled={busy}>{busy ? "AI 매칭 중..." : "AI 정밀 매칭 실행"}</button>{message && <p className="sub" style={{ marginTop: 12 }}>{message}</p>}
+    </section>
+
+    {result && <>
+      <section className="panel"><div className="toolbar"><div><h2>AI 포지셔닝</h2><p className="sub">모델: {result.model || "OpenAI"}</p></div><button className="btn" onClick={() => copy(result.candidate_summary)}>요약 복사</button></div><div className="cards"><div className="card"><span>추천 직무</span><b>{result.recommended_role}</b></div><div className="card"><span>추천 시장</span><b>{result.recommended_market}</b></div><div className="card"><span>분석 기업</span><b>{result.top_recommendations?.length || 0}개</b></div><div className="card"><span>이력서</span><b>{resumeText ? "업로드됨" : "DB 정보"}</b></div></div><p style={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}>{result.candidate_summary}</p></section>
+      <section className="panel"><h2>기업별 AI 추천</h2><div className="candidategrid">{(result.top_recommendations || []).map((item) => <article className="candidate" key={item.company}><div className="tag">{item.verdict}</div><h3>{item.company} · {item.score}%</h3><p><b>추천 직무</b> · {item.role}</p><p><b>추천 시장</b> · {item.market}</p><b>핵심 근거</b>{item.why?.map((line) => <p key={line}>· {line}</p>)}<p><b>강점</b> · {item.strengths?.join(" · ")}</p><p className="muted"><b>보완·확인</b> · {item.gaps?.join(" · ") || "추가 확인사항 없음"}</p><button className="btn" onClick={() => copy(item.recruiter_note)}>고객사 추천문안 복사</button></article>)}</div></section>
+      <section className="panel"><h2>이력서 보완사항</h2><div className="ranklist">{(result.resume_improvements || []).map((item, index) => <div className="rankrow" key={item}><b>{index + 1}</b><span>{item}</span></div>)}</div></section>
+    </>}
+    <footer>V15 · 후보자 선택 · 기업 선택 · OpenAI AI 매칭 · 추천문안 복사 · 결과 저장</footer>
+  </main>;
+}
