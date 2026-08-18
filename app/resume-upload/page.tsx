@@ -38,7 +38,7 @@ function analyze(text:string,c:Company):RuleResult{
  return {c,score,matched:unique([...ih,...rh,...mh,...kh]).slice(0,8),missing:unique([...c.industry,...c.roles,...c.markets]).filter(k=>!has(text,k)).slice(0,6),role:rh[0]||c.roles[0],market:mh[0]||c.markets[0],breakdown:{industry,role,market,keyword,recency}};
 }
 async function extractDocx(file:File){const r=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()});return r.value.trim();}
-async function extractPdf(file:File){const data=new Uint8Array(await file.arrayBuffer());const pdf=await pdfjsLib.getDocument({data,disableWorker:true}).promise;const pages:string[]=[];for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i);const c=await p.getTextContent();pages.push(c.items.map((x:any)=>"str" in x?x.str:"").join(" "));}return pages.join("\n\n").trim();}
+async function extractPdf(file:File){const data=new Uint8Array(await file.arrayBuffer());const pdf=await pdfjsLib.getDocument({data}).promise;const pages:string[]=[];for(let i=1;i<=pdf.numPages;i++){const p=await pdf.getPage(i);const c=await p.getTextContent();pages.push(c.items.map((x:any)=>"str" in x?x.str:"").join(" "));}return pages.join("\n\n").trim();}
 
 export default function ResumeUpload(){
  const[text,setText]=useState("");const[fileName,setFileName]=useState("");const[busy,setBusy]=useState(false);const[aiBusy,setAiBusy]=useState(false);const[notice,setNotice]=useState("");const[expanded,setExpanded]=useState<string|null>(null);const[category,setCategory]=useState("전체");const[ai,setAi]=useState<AIResult|null>(null);
