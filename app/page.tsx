@@ -48,6 +48,7 @@ const keyOf=(r:Row)=>`${r.category}::${r.company}`;
 const money=(v:number)=>{if(!v)return "확인 필요";const n=Math.round(v);return n>=10000?`${Math.floor(n/10000)}조${n%10000?`${n%10000}억`:""}`:`${n.toLocaleString("ko-KR")}억`};
 const growth=(r:Row)=>r.revenue2024?((r.revenue2025-r.revenue2024)/r.revenue2024)*100:null;
 const empty=(category:Category):Row=>({category,company:"",revenue2025:0,revenue2025Consolidated:0,revenue2024:0,revenue2024Consolidated:0,brands:"",odm:"",items:"",acquisition:"",location:"",memo:""});
+const Card=({title,children}:{title?:React.ReactNode;children:React.ReactNode})=><div className="card">{title&&<h3>{title}</h3>}{children}</div>;
 
 export default function Home(){
  const [loggedIn,setLoggedIn]=useState(false),[rows,setRows]=useState<Row[]>(seed),[filter,setFilter]=useState("전체"),[query,setQuery]=useState(""),[allSearch,setAllSearch]=useState(""),[zoneSearch,setZoneSearch]=useState<Record<string,string>>({}),[selected,setSelected]=useState<Row|null>(null),[addCategory,setAddCategory]=useState<Category|null>(null),[newRow,setNewRow]=useState<Row>(empty("대형 종합 뷰티")),[graph,setGraph]=useState<Row[]>([]),[dragging,setDragging]=useState(""),[dragOver,setDragOver]=useState(false),[allView,setAllView]=useState<Record<string,boolean>>({});
