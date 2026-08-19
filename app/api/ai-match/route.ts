@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-const model = process.env.OPENAI_MODEL || "gpt-5.6";
+// Cost-optimized default for high-volume resume matching.
+// Override with OPENAI_MODEL in Vercel if a different model is needed.
+const model = process.env.OPENAI_MODEL || "gpt-5.6-luna";
 
 type Company = { name: string; category: string; roles: string[]; markets: string[]; keywords?: string[]; point: string };
 
@@ -57,7 +59,7 @@ JSON 형식:
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, input: prompt, max_output_tokens: 5000 }),
+      body: JSON.stringify({ model, input: prompt, max_output_tokens: 4000 }),
     });
     if (!response.ok) {
       const detail = await response.text();
