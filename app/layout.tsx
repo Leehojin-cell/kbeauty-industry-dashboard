@@ -5,7 +5,7 @@ import { COOKIE_NAME, verifyAuthToken } from "../lib/auth";
 import PublicReadonly from "./public-readonly";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "2026 K-뷰티 산업 지형도", description: "한국 화장품 산업 지형도 대시보드" };
+export const metadata: Metadata = { title: "2025 K-뷰티 산업 지형도", description: "한국 화장품 산업 지형도 대시보드" };
 
 const menu = [
   { label: "산업 지형도", icon: "▥", href: "/" },
@@ -24,7 +24,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="ko">
       <body>
-        <div className="app-shell">
+        <div className="app-shell dashboard-v2">
           <aside className="sidebar">
             <Link href="/" className="brand"><span>K-뷰티 산업 지형도</span><b>2025</b></Link>
             <nav className="side-nav" aria-label="주요 메뉴">
@@ -41,7 +41,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <div className="topbar-spacer" />
               {!loggedIn && <span className="public-pill">외부 공개 · 보기 전용</span>}
               <span className="help-pill">?</span>
-              {loggedIn ? <a className="login-pill" href="/api/logout">관리자 로그아웃</a> : <Link className="login-pill" href="/login">♟ 관리자 로그인</Link>}
+              {loggedIn ? <a className="login-pill" href="/api/logout">♟ 관리자 로그아웃</a> : <Link className="login-pill" href="/login">♟ 관리자 로그인</Link>}
             </header>
             <PublicReadonly readonly={!loggedIn}>{children}</PublicReadonly>
           </div>
