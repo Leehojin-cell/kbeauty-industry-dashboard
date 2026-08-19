@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { COOKIE_NAME, verifyAuthToken } from "../lib/auth";
 import PublicReadonly from "./public-readonly";
 import "./globals.css";
+import "./dashboard-overrides.css";
 
 export const metadata: Metadata = { title: "2026 K-뷰티 화장품 산업 지형도", description: "한국 화장품 산업 지형도 대시보드" };
 
