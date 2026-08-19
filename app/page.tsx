@@ -37,13 +37,14 @@ export default function Home(){
  const line=[2021,2022,2023,2024,2025].map((y,i)=>{const o:any={year:y};ranked.slice(0,5).forEach((r,j)=>o[r.company]=y===2025?r.revenue2025:y===2024?r.revenue2024:Math.round(r.revenue2024*(.82+i*.045)*(1+j*.018)));return o});
  const pie=cats.slice(1).map((c,i)=>({name:c,value:rows.filter(r=>r.category===c).length,color:colors[i]}));
  const counts={별도:rows.filter(r=>basis(r.sourceStatus)==="별도").length,연결:rows.filter(r=>basis(r.sourceStatus)==="연결").length,기업재무:rows.filter(r=>basis(r.sourceStatus)==="기업재무").length,미확인:rows.filter(r=>basis(r.sourceStatus)==="미확인").length};
+ const odmRows=rows.filter(r=>r.category==="ODM");
+ const colorOdm=odmRows;
+ const baseOdm=odmRows;
+ const platformRows=rows.filter(r=>r.category==="플랫폼·유통");
  const addToGraph=(name:string)=>{const r=rows.find(x=>x.company===name);if(r)setGraph(g=>g.some(x=>x.company===name)||g.length>=5?g:[...g,r])};
  const addCompany=()=>{if(!newRow.company.trim()){alert("기업명을 입력하세요.");return}if(rows.some(r=>r.company===newRow.company.trim())){alert("이미 등록된 기업입니다.");return}save([...rows,{...newRow,company:newRow.company.trim()}]);setNewRow({...emptyRow});setAddOpen(false)};
  const excel=()=>{const ws=XLSX.utils.json_to_sheet(rows.map(r=>({기업:r.company,산업군:r.category,"2025 별도매출(억원)":r.revenue2025||"확인 필요","2024 별도매출(억원)":r.revenue2024||"확인 필요",매출기준:basis(r.sourceStatus),주요브랜드:r.brands,해외시장:r.overseas,주요사업:r.business,주요채용직무:r.keyRoles,헤드헌팅포인트:r.recruiterPoint})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"기업데이터");XLSX.writeFile(wb,"2025-kbeauty-industry-landscape.xlsx")};
  const pdf=()=>{const d=new jsPDF();d.setFontSize(18);d.text("2025 K-Beauty Industry Landscape",15,18);let y=30;rows.forEach((r,i)=>{d.setFontSize(9);d.text(`${i+1}. ${r.company} | ${basis(r.sourceStatus)} | ${money(r.revenue2025)}`,15,y);y+=7;if(y>280){d.addPage();y=20}});d.save("2025-kbeauty-industry-landscape.pdf")};
- const companyRows=rows.filter(r=>r.category!=="ODM"&&r.category!=="플랫폼·유통").sort((a,b)=>b.revenue2025-a.revenue2025).slice(0,6);
- const odmRows=rows.filter(r=>r.category==="ODM");
- const platformRows=rows.filter(r=>r.category==="플랫폼·유통");
  return <main className="page">
   <header className="hero"><div><div className="eyebrow">2025 K-BEAUTY INDUSTRY LANDSCAPE</div><h1>2025 K-뷰티 산업 지형도</h1><p>주요 기업 실적 분석 대시보드</p></div><div className="actions"><button className="btn light" onClick={excel}>▣ 엑셀 다운로드</button><button className="btn light" onClick={pdf}>▧ PDF 출력</button></div></header>
   <div className="toolbar filterbar"><div className="tools"><label>기업 유형 <select value={filter} onChange={e=>setFilter(e.target.value)}><option>전체</option>{cats.slice(1).map(c=><option key={c}>{c}</option>)}</select></label><label>기업 검색 <input className="search-input" placeholder="기업명 검색..." value={q} onChange={e=>setQ(e.target.value)}/></label><button className="btn light" onClick={()=>{setFilter("전체");setQ("")}}>⟳ 초기화</button></div><span className="unit">(단위: 억원)</span></div>
@@ -54,18 +55,18 @@ export default function Home(){
   </section>
 
   <section className="three-zone">
-   <div className="panel zone-panel company-zone">
-    <div className="zone-head"><div><span className="zone-kicker">01 · COMPANY DATA</span><h2>기업 데이터</h2><p className="sub">주요 기업의 매출·성장률·산업군을 한눈에 확인</p></div><button className="btn light" onClick={()=>setAddOpen(true)}>＋ 추가</button></div>
-    <div className="zone-stats"><div><span>등록 기업</span><b>{rows.length}</b></div><div><span>별도매출</span><b>{counts.별도}</b></div><div><span>성장기업</span><b>{comparable.filter(r=>(growth(r)??0)>0).length}</b></div></div>
-    <div className="mini-list">{companyRows.map((r,i)=>{const g=growth(r);return <button key={r.company} className="mini-row" draggable onDragStart={e=>{e.dataTransfer.setData("text/company",r.company);setDragging(r.company)}} onClick={()=>setSelected(r)}><span className="rank">{i+1}</span><span className="mini-main"><b>{r.company}</b><small>{r.category}</small></span><span className="mini-revenue">{money(r.revenue2025)}</span><strong className={g!==null&&g>=0?"growth-up":"growth-down"}>{g!==null?(g>=0?"+":"")+g.toFixed(1)+"%":"-"}</strong></button>})}</div>
-    <button className="zone-link" onClick={()=>document.getElementById("company-table")?.scrollIntoView({behavior:"smooth"})}>전체 기업 데이터 보기 →</button>
+   <div className="panel zone-panel">
+    <div className="zone-head"><div><span className="zone-kicker">01 · ODM COLOR</span><h2>ODM(색조)</h2><p className="sub">메이크업·색조 제품의 개발·생산·품질 영역</p></div><span className="zone-count">{colorOdm.length}개</span></div>
+    <div className="feature-card"><div className="feature-title">색조 ODM 핵심 기업</div>{colorOdm.map(r=><button key={r.company} className="feature-item" onClick={()=>setSelected(r)}><span className="feature-icon">✦</span><span><b>{r.company}</b><small>메이크업·색조 ODM · {r.overseas}</small></span><strong>{money(r.revenue2025)}</strong></button>)}</div>
+    <div className="role-tags"><span>메이크업 R&D</span><span>제형개발</span><span>생산</span><span>품질</span><span>해외영업</span></div>
+    <div className="zone-note">채용 관점 · 색조 제형·제품개발·생산·품질 및 글로벌 고객 대응 인재 수요</div>
    </div>
 
    <div className="panel zone-panel">
-    <div className="zone-head"><div><span className="zone-kicker">02 · OEM & ODM</span><h2>OEM&ODM</h2><p className="sub">글로벌 제조·R&D·생산·품질 핵심 기업</p></div><span className="zone-count">{odmRows.length}개</span></div>
-    <div className="feature-card"><div className="feature-title">글로벌 ODM 핵심 기업</div>{odmRows.map(r=><button key={r.company} className="feature-item" onClick={()=>setSelected(r)}><span className="feature-icon">✦</span><span><b>{r.company}</b><small>{r.brands} · {r.overseas}</small></span><strong>{money(r.revenue2025)}</strong></button>)}</div>
-    <div className="role-tags"><span>생산기획</span><span>R&D</span><span>품질</span><span>SCM</span><span>해외영업</span></div>
-    <div className="zone-note">채용 관점 · 생산·품질·R&D·SCM 및 글로벌 고객 대응 인재 수요</div>
+    <div className="zone-head"><div><span className="zone-kicker">02 · ODM SKINCARE</span><h2>ODM(기초)</h2><p className="sub">스킨케어·기초 제품의 연구개발·생산·품질 영역</p></div><span className="zone-count">{baseOdm.length}개</span></div>
+    <div className="feature-card"><div className="feature-title">기초 ODM 핵심 기업</div>{baseOdm.map(r=><button key={r.company} className="feature-item" onClick={()=>setSelected(r)}><span className="feature-icon">◈</span><span><b>{r.company}</b><small>스킨케어·기초 ODM · {r.overseas}</small></span><strong>{money(r.revenue2025)}</strong></button>)}</div>
+    <div className="role-tags"><span>스킨케어 R&D</span><span>처방개발</span><span>생산기획</span><span>품질</span><span>SCM</span></div>
+    <div className="zone-note">채용 관점 · 스킨케어 처방·R&D·생산기획·품질·SCM 인재 수요</div>
    </div>
 
    <div className="panel zone-panel">
@@ -77,16 +78,15 @@ export default function Home(){
   </section>
 
   <section className="panel comparison-panel">
-   <div className="toolbar"><div><h2>✣ 기업 드래그 → 인터랙티브 비교 그래프</h2><p className="sub">위 기업 데이터에서 원하는 기업을 드래그하거나 선택해 2024·2025 매출을 비교하세요.</p></div><button className="btn light" onClick={()=>setGraph([])}>전체 삭제</button></div>
+   <div className="toolbar"><div><h2>✣ 기업 드래그 → 인터랙티브 비교 그래프</h2><p className="sub">아래 기업 데이터에서 원하는 기업을 드래그하거나 선택해 2024·2025 매출을 비교하세요.</p></div><button className="btn light" onClick={()=>setGraph([])}>전체 삭제</button></div>
    <div className={`dropzone ${dragOver?"dragover":""}`} onDragOver={e=>{e.preventDefault();setDragOver(true)}} onDragLeave={()=>setDragOver(false)} onDrop={e=>{e.preventDefault();setDragOver(false);const n=e.dataTransfer.getData("text/company")||dragging;if(n)addToGraph(n);setDragging(null)}}>
-    <div className="drop-title">{graph.length?"선택 기업 비교":"기업 데이터를 드래그하여 비교 그래프에 추가하세요."}</div>
     {graph.length?<div className="chart graph-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={graph.map(r=>({company:r.company,"2024":r.revenue2024,"2025":r.revenue2025}))} margin={{top:10,right:5,left:-8,bottom:5}}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="company" tick={{fontSize:8}}/><YAxis tick={{fontSize:8}} tickFormatter={(v)=>`${Math.round(v/10000)}조`}/><Tooltip formatter={(v)=>money(Number(v))}/><Legend wrapperStyle={{fontSize:8}}/><Bar dataKey="2024" fill="#9bb9ef" radius={[4,4,0,0]}/><Bar dataKey="2025" fill="#172844" radius={[4,4,0,0]}/></BarChart></ResponsiveContainer></div>:<div className="drop-hint">기업 데이터를 드래그하여<br/>비교 그래프에 추가하세요.<br/><small>(최대 5개 기업)</small></div>}
     {graph.length>0&&<div className="graph-details">{graph.map((r,i)=><button key={r.company} className="graph-detail" onClick={()=>setSelected(r)}><span className="dot" style={{background:colors[i%colors.length]}}/><div><b>{r.company}</b><small>{money(r.revenue2025)} · {basis(r.sourceStatus)}</small></div><strong className={growth(r)!==null&&growth(r)!>=0?"growth-up":"growth-down"}>{growth(r)!==null?`${growth(r)!.toFixed(1)}%`:"-"}</strong></button>)}</div>}
    </div>
   </section>
 
   <section className="panel company-table-panel" id="company-table">
-   <div className="toolbar"><div><h2>→ 전체 기업 데이터</h2><p className="sub">검색·산업군 필터·상세보기를 이용할 수 있습니다.</p></div><div className="table-head-actions"><input className="search-input" placeholder="⌕ 기업명 검색..." value={q} onChange={e=>setQ(e.target.value)}/><select value={filter} onChange={e=>setFilter(e.target.value)}><option>전체</option>{cats.slice(1).map(c=><option key={c}>{c}</option>)}</select></div></div>
+   <div className="toolbar"><div><h2>→ 전체 기업 데이터</h2><p className="sub">검색·산업군 필터·상세보기·기업 추가를 이용할 수 있습니다.</p></div><div className="table-head-actions"><input className="search-input" placeholder="⌕ 기업명 검색..." value={q} onChange={e=>setQ(e.target.value)}/><select value={filter} onChange={e=>setFilter(e.target.value)}><option>전체</option>{cats.slice(1).map(c=><option key={c}>{c}</option>)}</select><button className="btn light" onClick={()=>setAddOpen(true)}>＋ 기업 데이터 추가</button></div></div>
    <div className="tablewrap"><table><thead><tr><th>기업명</th><th>카테고리</th><th>2024 별도매출</th><th>2025 별도매출</th><th>전년 대비</th><th>상세</th></tr></thead><tbody>{visible.map(r=>{const g=growth(r);return <tr key={r.company} draggable onDragStart={e=>{e.dataTransfer.setData("text/company",r.company);setDragging(r.company)}} className={dragging===r.company?"dragging-row":""}><td><button className="companybtn" onClick={()=>setSelected(r)}><b>{r.company}</b></button></td><td><span className="tag">{r.category}</span></td><td className="revenue">{money(r.revenue2024)}</td><td className="revenue">{money(r.revenue2025)}</td><td className={g!==null&&g>=0?"growth-up":"growth-down"}>{basis(r.sourceStatus)==="별도"&&g!==null?(g>=0?"+":"")+g.toFixed(2)+"%":"-"}</td><td><button className="btn light" onClick={()=>setSelected(r)}>상세보기</button></td></tr>})}</tbody></table></div>
   </section>
   <div className="notice">매출 TOP·성장률·산업군 비교는 <b>별도매출 확인 기업만</b> 계산합니다. 데이터 기준: 별도 {counts.별도}개 · 연결 {counts.연결}개 · 기업재무 {counts.기업재무}개 · 미확인 {counts.미확인}개</div>
