@@ -1,0 +1,24 @@
+/* Dashboard layout refinement: keep the current design, but place the interactive comparison panel beside the full company table. */
+.bottom {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr) !important;
+  gap: 10px !important;
+  align-items: start !important;
+}
+.bottom > .card { min-width: 0 !important; }
+.bottom > .card:last-child { position: sticky; top: 82px; }
+.bottom > .card:last-child .dropZone {
+  min-height: 108px !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-width: 2px !important;
+}
+.bottom > .card:last-child .chips { min-height: 22px; }
+.bottom > .card:first-child .sortBar { justify-content: flex-end; }
+.bottom > .card:first-child table tbody tr[draggable="true"] { cursor: grab; }
+.bottom > .card:first-child table tbody tr[draggable="true"]:active { cursor: grabbing; }
+@media (max-width: 1000px) {
+  .bottom { grid-template-columns: 1fr !important; }
+  .bottom > .card:last-child { position: static; }
+}
