@@ -9,6 +9,7 @@ export const metadata: Metadata = { title: "2026 K-뷰티 산업 지형도", des
 
 const menu = [
   { label: "산업 지형도", icon: "▥", href: "/" },
+  { label: "기업 데이터", icon: "▦", href: "/company-data" },
   { label: "채용 분석", icon: "ⓘ", href: "/recruiting", private: true },
   { label: "후보자 관리", icon: "◎", href: "/candidates", private: true },
   { label: "이력서 업로드", icon: "▤", href: "/resume-upload", private: true },
