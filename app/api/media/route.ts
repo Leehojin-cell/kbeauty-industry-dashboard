@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     }
     const [directories, items] = await Promise.all([
       directoryRows(sql),
-      sql`SELECT id, directory_id, media_type, title, file_url, blob_pathname, youtube_url, thumbnail_url, mime_type, size_bytes, metadata_json, sort_order, created_at FROM media_items WHERE deleted_at IS NULL ORDER BY media_type ASC, sort_order ASC, created_at DESC`,
+      sql`SELECT id, directory_id, media_type, title, CASE WHEN media_type = 'video' THEN '/api/media/stream/' || id ELSE file_url END AS file_url, blob_pathname, youtube_url, thumbnail_url, mime_type, size_bytes, metadata_json, sort_order, created_at FROM media_items WHERE deleted_at IS NULL ORDER BY media_type ASC, sort_order ASC, created_at DESC`,
     ]);
     return NextResponse.json({ directories, items });
   } catch (error) {
