@@ -6,24 +6,26 @@ import PublicReadonly from "./public-readonly";
 import "./globals.css";
 import "./dashboard-overrides.css";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://kbeauty-industry-dashboard.vercel.app";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://kbeauty-industry-dashboard.vercel.app"),
+  metadataBase: new URL(siteUrl),
   title: "2026 K-뷰티 화장품 산업 지형도",
   description: "한국 화장품 산업 지형도 대시보드와 동영상·YouTube·이미지 미디어 관리 시스템",
   openGraph: {
     type: "website",
     locale: "ko_KR",
-    url: "/",
+    url: siteUrl,
     title: "2026 K-뷰티 화장품 산업 지형도",
     description: "한국 화장품 산업 지형도 대시보드",
     siteName: "K-뷰티 산업 지형도",
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "2026 K-뷰티 화장품 산업 지형도" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, type: "image/png", alt: "2026 K-뷰티 화장품 산업 지형도" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "2026 K-뷰티 화장품 산업 지형도",
     description: "한국 화장품 산업 지형도 대시보드",
-    images: ["/og-image.svg"],
+    images: ["/opengraph-image"],
   },
 };
 
