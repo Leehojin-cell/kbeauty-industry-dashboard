@@ -60,16 +60,16 @@ export async function DELETE(request: NextRequest) {
   try { await ensureTables(sql); const params = new URL(request.url).searchParams; const body = await request.json().catch(() => ({}));
     const directory = params.get("directory") === "1";
     const singleId = params.get("id");
-    const rawIds = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : singleId ? [singleId] : [];
-    const ids = [...new Set(rawIds.map((id: unknown) => String(id).trim()).filter(Boolean))];
+    const rawIds: unknown[] = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : singleId ? [singleId] : [];
+    const ids: string[] = Array.from(new Set(rawIds.map((id: unknown) => String(id).trim()).filter((id): id is string => Boolean(id))));
     if (!ids.length) return NextResponse.json({ error: "삭제할 미디어 ID가 없습니다." }, { status: 400 });
     if (directory) {
       if (ids.length !== 1) return NextResponse.json({ error: "디렉토리 삭제는 하나씩 처리합니다." }, { status: 400 });
       const folders = await sql`WITH RECURSIVE tree AS (SELECT id FROM media_directories WHERE id = ${ids[0]} UNION ALL SELECT d.id FROM media_directories d JOIN tree t ON d.parent_id = t.id) SELECT id FROM tree`;
-      const folderIds = folders.map((r) => String(r.id)); if (!folderIds.length) return NextResponse.json({ error: "디렉토리를 찾지 못했습니다." }, { status: 404 });
+      const folderIds: string[] = folders.map((r) => String(r.id)); if (!folderIds.length) return NextResponse.json({ error: "디렉토리를 찾지 못했습니다." }, { status: 404 });
       const items = await sql`SELECT id, blob_pathname FROM media_items WHERE directory_id = ANY(${folderIds})`;
       if (process.env.BLOB_READ_WRITE_TOKEN) for (const item of items) if (item.blob_pathname) { try { await del(String(item.blob_pathname), { token: process.env.BLOB_READ_WRITE_TOKEN }); } catch {} }
-      await sql`DELETE FROM media_items WHERE directory_id = ANY(${folderIds})`; await sql`DELETE FROM media_directories WHERE id = ANY(${folderIds})`; return NextResponse.json({ ok: true, deleted: items.rows ?? items });
+      await sql`DELETE FROM media_items WHERE directory_id = ANY(${folderIds})`; await sql`DELETE FROM media_directories WHERE id = ANY(${folderIds})`; return NextResponse.json({ ok: true, deleted: items });
     }
     const rows = await sql`SELECT id, blob_pathname FROM media_items WHERE id = ANY(${ids})`;
     if (process.env.BLOB_READ_WRITE_TOKEN) for (const row of rows) if (row.blob_pathname) { try { await del(String(row.blob_pathname), { token: process.env.BLOB_READ_WRITE_TOKEN }); } catch {} }
