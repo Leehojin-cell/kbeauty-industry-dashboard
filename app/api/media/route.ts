@@ -117,10 +117,13 @@ export async function POST(request: NextRequest) {
       const mediaType = String(body.mediaType || "");
       const title = String(body.title || "").trim();
       const directoryId = body.directoryId ? String(body.directoryId) : null;
-      if (!["video", "youtube", "image"].includes(mediaType) || !title) return NextResponse.json({ error: "잘못된 콘텐츠 정보입니다." }, { status: 400 });
+      if (!["video", "youtube", "image", "pdf"].includes(mediaType) || !title) return NextResponse.json({ error: "잘못된 콘텐츠 정보입니다." }, { status: 400 });
+      if (mediaType === "pdf" && body.mimeType && String(body.mimeType) !== "application/pdf") return NextResponse.json({ error: "PDF 파일만 저장할 수 있습니다." }, { status: 400 });
+      if (mediaType === "image" && body.mimeType && !String(body.mimeType).startsWith("image/")) return NextResponse.json({ error: "이미지 파일만 저장할 수 있습니다." }, { status: 400 });
       if (directoryId) {
         const folder = await sql`SELECT id, media_type FROM media_directories WHERE id = ${directoryId}`;
-        if (!folder[0] || folder[0].media_type !== mediaType) return NextResponse.json({ error: "콘텐츠와 디렉토리 유형이 일치하지 않습니다." }, { status: 400 });
+        const compatible = folder[0] && ((mediaType === "pdf" || mediaType === "image") ? folder[0].media_type === "image" : folder[0].media_type === mediaType);
+        if (!compatible) return NextResponse.json({ error: "콘텐츠와 디렉토리 유형이 일치하지 않습니다." }, { status: 400 });
       }
       let titleValue = title;
       let thumbnailUrl = body.thumbnailUrl ? String(body.thumbnailUrl) : null;
