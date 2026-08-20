@@ -6,6 +6,7 @@ import PublicReadonly from "./public-readonly";
 import "./globals.css";
 import "./dashboard-overrides.css";
 import "./media-manager-bulk.css";
+import "./media-manager-approved-layout.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://kbeauty-industry-dashboard.vercel.app";
 
