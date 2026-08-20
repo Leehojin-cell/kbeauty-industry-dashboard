@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { COOKIE_NAME, verifyAuthToken } from "../../../../../lib/auth";
+import { COOKIE_NAME, verifyAuthToken } from "../../../../lib/auth";
 
 export const dynamic = "force-dynamic";
 
