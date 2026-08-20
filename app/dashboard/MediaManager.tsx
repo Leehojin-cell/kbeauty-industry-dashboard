@@ -1,18 +1,30 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react';
 import { upload } from '@vercel/blob/client';
 
-type MediaType = 'video' | 'youtube' | 'image';
-type Directory = { id: string; media_type: MediaType; name: string; parent_id: string | null; sort_order: number };
-type MediaItem = { id: string; directory_id: string | null; media_type: MediaType; title: string; file_url: string | null; blob_pathname?: string | null; youtube_url: string | null; thumbnail_url?: string | null; mime_type: string | null; size_bytes: number | null; sort_order: number; created_at: string };
+type MediaType = 'video' | 'youtube' | 'imagepdf';
+type StoredMediaType = 'video' | 'youtube' | 'image' | 'pdf';
+type Directory = { id: string; media_type: 'video' | 'youtube' | 'image'; name: string; parent_id: string | null; sort_order: number };
+type MediaItem = { id: string; directory_id: string | null; media_type: StoredMediaType; title: string; file_url: string | null; blob_pathname?: string | null; youtube_url: string | null; thumbnail_url?: string | null; mime_type: string | null; size_bytes: number | null; sort_order: number; created_at: string };
 
-const labels: Record<MediaType,string> = { video:'동영상 저장', youtube:'YouTube 링크', image:'이미지 저장' };
-const colors: Record<MediaType,string> = { video:'#1769e8', youtube:'#e62143', image:'#16a05d' };
+const labels: Record<MediaType,string> = { video:'동영상 저장', youtube:'YouTube 링크', imagepdf:'이미지&PDF 저장' };
+const colors: Record<MediaType,string> = { video:'#1769e8', youtube:'#e62143', imagepdf:'#16a05d' };
 
-function ytId(value: string | null) { if (!value) return ''; try { const u = new URL(value); if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('/')[0]; if (u.hostname.endsWith('youtube.com')) return u.searchParams.get('v') || u.pathname.match(/\/(?:embed|shorts|live)\/([^/?]+)/)?.[1] || ''; } catch {} return ''; }
+function ytId(value: string | null) {
+  if (!value) return '';
+  try {
+    const u = new URL(value);
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('/')[0];
+    if (u.hostname.endsWith('youtube.com')) return u.searchParams.get('v') || u.pathname.match(/\/(?:embed|shorts|live)\/([^/?]+)/)?.[1] || '';
+  } catch {}
+  return '';
+}
 function size(n:number|null){ if(!n)return ''; return n<1024*1024?`${Math.max(1,Math.round(n/1024))}KB`:`${(n/1024/1024).toFixed(1)}MB`; }
 function fileTitle(name:string){ return name.replace(/\.[^.]+$/,'').trim() || name; }
+function backendType(t:MediaType): 'video'|'youtube'|'image' { return t==='imagepdf'?'image':t; }
+function uiTypeForDirectory(t:Directory['media_type']): MediaType { return t==='image'?'imagepdf':t; }
+function isPdfFile(file:File){ return file.type==='application/pdf' || /\.pdf$/i.test(file.name); }
 
 const s = {
   shell:{border:'1px solid #d6e1ee',borderRadius:10,background:'#fff',padding:12,boxShadow:'0 2px 8px rgba(15,45,80,.05)',color:'#102f55'},
@@ -28,64 +40,214 @@ const s = {
 } as const;
 
 export default function MediaManager({isAdmin}:{isAdmin:boolean}) {
-  const [dirs,setDirs]=useState<Directory[]>([]); const [items,setItems]=useState<MediaItem[]>([]); const [selected,setSelected]=useState<Record<MediaType,string>>({video:'',youtube:'',image:''});
-  const [error,setError]=useState(''); const [busy,setBusy]=useState(false); const [dragType,setDragType]=useState<MediaType|null>(null); const [dragFolder,setDragFolder]=useState<string|null>(null); const [dragItem,setDragItem]=useState<string|null>(null);
+  const [dirs,setDirs]=useState<Directory[]>([]);
+  const [items,setItems]=useState<MediaItem[]>([]);
+  const [selected,setSelected]=useState<Record<MediaType,string>>({video:'',youtube:'',imagepdf:''});
+  const [error,setError]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [dragType,setDragType]=useState<MediaType|null>(null);
+  const [dragFolder,setDragFolder]=useState<string|null>(null);
+  const [dragItem,setDragItem]=useState<string|null>(null);
   const [dialog,setDialog]=useState<{type:MediaType;mode:'create'|'rename';id?:string;name:string;parentId:string|null}|null>(null);
-  const [youtubeUrl,setYoutubeUrl]=useState(''); const [youtubeMeta,setYoutubeMeta]=useState<{title:string;thumbnailUrl:string|null}|null>(null); const [preview,setPreview]=useState<MediaItem|null>(null);
-  const videoInput=useRef<HTMLInputElement>(null), imageInput=useRef<HTMLInputElement>(null);
+  const [youtubeUrl,setYoutubeUrl]=useState('');
+  const [youtubeMeta,setYoutubeMeta]=useState<{title:string;thumbnailUrl:string|null}|null>(null);
+  const [preview,setPreview]=useState<MediaItem|null>(null);
+  const videoInput=useRef<HTMLInputElement>(null);
+  const imagePdfInput=useRef<HTMLInputElement>(null);
+  const videoRef=useRef<HTMLVideoElement>(null);
 
-  const load=useCallback(async()=>{ if(!isAdmin)return; try{const r=await fetch('/api/media',{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'미디어 데이터를 불러오지 못했습니다.');setDirs(d.directories||[]);setItems(d.items||[]);setError('');}catch(e){setError(e instanceof Error?e.message:'미디어 데이터를 불러오지 못했습니다.');}},[isAdmin]);
+  const load=useCallback(async()=>{
+    if(!isAdmin)return;
+    try{
+      const r=await fetch('/api/media',{cache:'no-store'});
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.error||'미디어 데이터를 불러오지 못했습니다.');
+      setDirs(d.directories||[]);setItems(d.items||[]);setError('');
+    }catch(e){setError(e instanceof Error?e.message:'미디어 데이터를 불러오지 못했습니다.');}
+  },[isAdmin]);
   useEffect(()=>{void load()},[load]);
-  useEffect(()=>{ if(!isAdmin)return; const stop=(e:globalThis.DragEvent)=>{if(e.dataTransfer?.types?.includes('Files')||e.dataTransfer?.types?.includes('text/uri-list'))e.preventDefault()}; window.addEventListener('dragover',stop);window.addEventListener('drop',stop);return()=>{window.removeEventListener('dragover',stop);window.removeEventListener('drop',stop)}},[isAdmin]);
-  useEffect(()=>{ if(!preview)return; const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape')setPreview(null)}; window.addEventListener('keydown',onKey); return()=>window.removeEventListener('keydown',onKey)},[preview]);
+  useEffect(()=>{
+    if(!isAdmin)return;
+    const stop=(e:globalThis.DragEvent)=>{if(e.dataTransfer?.types?.includes('Files')||e.dataTransfer?.types?.includes('text/uri-list'))e.preventDefault()};
+    window.addEventListener('dragover',stop);window.addEventListener('drop',stop);
+    return()=>{window.removeEventListener('dragover',stop);window.removeEventListener('drop',stop)};
+  },[isAdmin]);
+  useEffect(()=>{
+    if(!preview)return;
+    const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape')setPreview(null)};
+    window.addEventListener('keydown',onKey);
+    return()=>window.removeEventListener('keydown',onKey);
+  },[preview]);
+  useEffect(()=>{
+    if(preview?.media_type!=='video')return;
+    const v=videoRef.current;
+    if(!v)return;
+    const start=()=>{v.currentTime=0;void v.play().catch(()=>{})};
+    v.addEventListener('loadeddata',start,{once:true});
+    return()=>v.removeEventListener('loadeddata',start);
+  },[preview]);
 
-  const byType=(t:MediaType)=>dirs.filter(d=>d.media_type===t).sort((a,b)=>a.sort_order-b.sort_order||a.name.localeCompare(b.name));
+  const byType=(t:MediaType)=>dirs.filter(d=>d.media_type===backendType(t)).sort((a,b)=>a.sort_order-b.sort_order||a.name.localeCompare(b.name));
   const children=(t:MediaType,p:string|null)=>byType(t).filter(d=>d.parent_id===p);
-  const visible=(t:MediaType)=>items.filter(i=>i.media_type===t&&(!selected[t]||i.directory_id===selected[t])).sort((a,b)=>a.sort_order-b.sort_order||+new Date(b.created_at)-+new Date(a.created_at));
+  const visible=(t:MediaType)=>items.filter(i=>{
+    const matchesType=t==='imagepdf'?(i.media_type==='image'||i.media_type==='pdf'):i.media_type===t;
+    return matchesType&&(!selected[t]||i.directory_id===selected[t]);
+  }).sort((a,b)=>a.sort_order-b.sort_order||+new Date(b.created_at)-+new Date(a.created_at));
 
-  async function patchDir(id:string,parentId:string|null,sortOrder:number,name?:string){const r=await fetch('/api/media',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,parentId,sortOrder,name})});const d=await r.json();if(!r.ok)throw new Error(d.error||'디렉토리를 수정하지 못했습니다.');}
+  async function patchDir(id:string,parentId:string|null,sortOrder:number,name?:string){
+    const r=await fetch('/api/media',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,parentId,sortOrder,name})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error||'디렉토리를 수정하지 못했습니다.');
+  }
   async function normalizeDirs(t:MediaType,p:string|null,order:string[]){for(let i=0;i<order.length;i++)await patchDir(order[i],p,i)}
-  async function moveDir(t:MediaType,id:string,targetId:string,into:boolean){const all=byType(t);const dragged=all.find(x=>x.id===id),target=all.find(x=>x.id===targetId);if(!dragged||!target||id===targetId)return;let parentId=into?target.id:target.parent_id;const siblings=all.filter(x=>x.parent_id===parentId&&x.id!==id);const idx=into?siblings.length:Math.max(0,siblings.findIndex(x=>x.id===targetId));siblings.splice(idx<0?siblings.length:idx,0,dragged);await patchDir(id,parentId,idx<0?siblings.length-1:idx);await normalizeDirs(t,parentId,siblings.map(x=>x.id));await load();setSelected(v=>({...v,[t]:id}));}
+  async function moveDir(t:MediaType,id:string,targetId:string,into:boolean){
+    const all=byType(t);const dragged=all.find(x=>x.id===id),target=all.find(x=>x.id===targetId);
+    if(!dragged||!target||id===targetId)return;
+    const parentId=into?target.id:target.parent_id;
+    const siblings=all.filter(x=>x.parent_id===parentId&&x.id!==id);
+    const idx=into?siblings.length:Math.max(0,siblings.findIndex(x=>x.id===targetId));
+    siblings.splice(idx<0?siblings.length:idx,0,dragged);
+    await patchDir(id,parentId,idx<0?siblings.length-1:idx);
+    await normalizeDirs(t,parentId,siblings.map(x=>x.id));
+    await load();setSelected(v=>({...v,[t]:id}));
+  }
 
-  async function saveDirectory(){if(!dialog?.name.trim())return;try{setBusy(true);setError('');if(dialog.mode==='create'){const r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'directory',mediaType:dialog.type,name:dialog.name.trim(),parentId:dialog.parentId})});const d=await r.json();if(!r.ok)throw new Error(d.error||'디렉토리 생성에 실패했습니다.');setSelected(v=>({...v,[dialog.type]:d.id}));}else await patchDir(dialog.id!,dialog.parentId,byType(dialog.type).find(d=>d.id===dialog.id)?.sort_order||0,dialog.name.trim());setDialog(null);await load()}catch(e){setError(e instanceof Error?e.message:'디렉토리 저장에 실패했습니다.')}finally{setBusy(false)}}
-  async function deleteDir(d:Directory){if(!confirm(`'${d.name}' 디렉토리와 하위 디렉토리의 콘텐츠를 모두 삭제하시겠습니까?`))return;try{setBusy(true);const r=await fetch(`/api/media?id=${encodeURIComponent(d.id)}&directory=1`,{method:'DELETE'});const x=await r.json();if(!r.ok)throw new Error(x.error||'삭제하지 못했습니다.');await load();setSelected(v=>({...v,[d.media_type]:v[d.media_type]===d.id?'':v[d.media_type]}))}catch(e){setError(e instanceof Error?e.message:'디렉토리 삭제에 실패했습니다.')}finally{setBusy(false)}}
+  async function saveDirectory(){
+    if(!dialog?.name.trim())return;
+    try{
+      setBusy(true);setError('');
+      if(dialog.mode==='create'){
+        const r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'directory',mediaType:backendType(dialog.type),name:dialog.name.trim(),parentId:dialog.parentId})});
+        const d=await r.json();if(!r.ok)throw new Error(d.error||'디렉토리 생성에 실패했습니다.');
+        setSelected(v=>({...v,[dialog.type]:d.id}));
+      }else{
+        await patchDir(dialog.id!,dialog.parentId,byType(dialog.type).find(d=>d.id===dialog.id)?.sort_order||0,dialog.name.trim());
+      }
+      setDialog(null);await load();
+    }catch(e){setError(e instanceof Error?e.message:'디렉토리 저장에 실패했습니다.')}finally{setBusy(false)}
+  }
+  async function deleteDir(d:Directory){
+    if(!confirm(`'${d.name}' 디렉토리와 하위 디렉토리의 콘텐츠를 모두 삭제하시겠습니까?`))return;
+    try{
+      setBusy(true);const r=await fetch(`/api/media?id=${encodeURIComponent(d.id)}&directory=1`,{method:'DELETE'});const x=await r.json();
+      if(!r.ok)throw new Error(x.error||'삭제하지 못했습니다.');
+      await load();const t=uiTypeForDirectory(d.media_type);setSelected(v=>({...v,[t]:v[t]===d.id?'':v[t]}));
+    }catch(e){setError(e instanceof Error?e.message:'디렉토리 삭제에 실패했습니다.')}finally{setBusy(false)}
+  }
 
-  async function uploadFile(file:File,t:'video'|'image'){const expected=t==='video'?'video/':'image/';if(!file.type.startsWith(expected)){setError(t==='video'?'동영상 파일만 넣어주세요.':'이미지 파일만 넣어주세요.');return}try{setBusy(true);setError('');const result=await upload(`media/${t}/${Date.now()}-${file.name.replace(/[^\w가-힣.()-]/g,'_')}`,file,{access:'public',handleUploadUrl:'/api/media/upload',multipart:true,onUploadProgress:p=>setError(`${labels[t]} 업로드 중 ${Math.round(p.percentage)}%`)});const r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'item',mediaType:t,title:fileTitle(file.name),directoryId:selected[t]||null,fileUrl:result.url,blobPathname:result.pathname,mimeType:file.type,sizeBytes:file.size})});const d=await r.json();if(!r.ok)throw new Error(d.error||'파일 정보를 저장하지 못했습니다.');await load();setError('')}catch(e){setError(e instanceof Error?e.message:'업로드에 실패했습니다.')}finally{setBusy(false)}}
-  async function files(files:FileList|File[],t:'video'|'image'){for(const f of Array.from(files))await uploadFile(f,t)}
-  async function fileChange(e:ChangeEvent<HTMLInputElement>,t:'video'|'image'){if(e.target.files?.length)await files(e.target.files,t);e.target.value=''}
+  async function uploadFile(file:File,t:MediaType){
+    let storedType:StoredMediaType;
+    if(t==='video'){
+      if(!file.type.startsWith('video/')){setError('동영상 파일만 넣어주세요.');return}
+      storedType='video';
+    }else if(t==='imagepdf'){
+      if(isPdfFile(file))storedType='pdf';
+      else if(file.type.startsWith('image/'))storedType='image';
+      else {setError('이미지 또는 PDF 파일만 넣어주세요.');return}
+    }else return;
+    try{
+      setBusy(true);setError('');
+      const safeName=file.name.replace(/[^\w가-힣.()-]/g,'_');
+      const result=await upload(`media/${storedType}/${Date.now()}-${safeName}`,file,{access:'public',handleUploadUrl:'/api/media/upload',multipart:true,onUploadProgress:p=>setError(`${labels[t]} 업로드 중 ${Math.round(p.percentage)}%`)});
+      const r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'item',mediaType:storedType,title:fileTitle(file.name),directoryId:selected[t]||null,fileUrl:result.url,blobPathname:result.pathname,mimeType:file.type|| (storedType==='pdf'?'application/pdf':''),sizeBytes:file.size})});
+      const d=await r.json();if(!r.ok)throw new Error(d.error||'파일 정보를 저장하지 못했습니다.');
+      await load();setError('');
+    }catch(e){setError(e instanceof Error?e.message:'업로드에 실패했습니다.')}finally{setBusy(false)}
+  }
+  async function files(files:FileList|File[],t:MediaType){for(const f of Array.from(files))await uploadFile(f,t)}
+  async function fileChange(e:ChangeEvent<HTMLInputElement>,t:MediaType){if(e.target.files?.length)await files(e.target.files,t);e.target.value=''}
 
-  async function previewYoutube(value:string){setYoutubeUrl(value);setYoutubeMeta(null);if(!ytId(value))return;try{const r=await fetch(`/api/media?youtube=1&url=${encodeURIComponent(value)}`);const d=await r.json();if(r.ok)setYoutubeMeta({title:d.title,thumbnailUrl:d.thumbnailUrl});}catch{}}
-  async function addYoutube(){if(!ytId(youtubeUrl)){setError('유효한 YouTube URL을 넣어주세요.');return}try{setBusy(true);setError('');const r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'item',mediaType:'youtube',title:youtubeMeta?.title||'YouTube 영상',youtubeUrl:youtubeUrl.trim(),thumbnailUrl:youtubeMeta?.thumbnailUrl||null,directoryId:selected.youtube||null})});const d=await r.json();if(!r.ok)throw new Error(d.error||'YouTube 링크 저장에 실패했습니다.');setYoutubeUrl('');setYoutubeMeta(null);await load()}catch(e){setError(e instanceof Error?e.message:'YouTube 링크 저장에 실패했습니다.')}finally{setBusy(false)}}
-  async function removeItem(i:MediaItem){if(!confirm(`'${i.title}'을(를) 삭제하시겠습니까?`))return;try{setBusy(true);const r=await fetch(`/api/media?id=${encodeURIComponent(i.id)}`,{method:'DELETE'});const d=await r.json();if(!r.ok)throw new Error(d.error||'삭제하지 못했습니다.');await load()}catch(e){setError(e instanceof Error?e.message:'삭제하지 못했습니다.')}finally{setBusy(false)}}
-  async function moveItem(t:MediaType,id:string,targetId:string){const list=visible(t),from=list.findIndex(x=>x.id===id),to=list.findIndex(x=>x.id===targetId);if(from<0||to<0||from===to)return;const next=[...list];const [m]=next.splice(from,1);next.splice(to,0,m);for(let i=0;i<next.length;i++)await fetch('/api/media',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({entity:'item',id:next[i].id,directoryId:next[i].directory_id,sortOrder:i})});await load()}
+  async function previewYoutube(value:string){
+    setYoutubeUrl(value);setYoutubeMeta(null);if(!ytId(value))return;
+    try{const r=await fetch(`/api/media?youtube=1&url=${encodeURIComponent(value)}`);const d=await r.json();if(r.ok)setYoutubeMeta({title:d.title,thumbnailUrl:d.thumbnailUrl});}catch{}
+  }
+  async function addYoutube(){
+    if(!ytId(youtubeUrl)){setError('유효한 YouTube URL을 넣어주세요.');return}
+    try{
+      setBusy(true);setError('');const r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'item',mediaType:'youtube',title:youtubeMeta?.title||'YouTube 영상',youtubeUrl:youtubeUrl.trim(),thumbnailUrl:youtubeMeta?.thumbnailUrl||null,directoryId:selected.youtube||null})});
+      const d=await r.json();if(!r.ok)throw new Error(d.error||'YouTube 링크 저장에 실패했습니다.');
+      setYoutubeUrl('');setYoutubeMeta(null);await load();
+    }catch(e){setError(e instanceof Error?e.message:'YouTube 링크 저장에 실패했습니다.')}finally{setBusy(false)}
+  }
+  async function removeItem(i:MediaItem){
+    if(!confirm(`'${i.title}'을(를) 삭제하시겠습니까?`))return;
+    try{setBusy(true);const r=await fetch(`/api/media?id=${encodeURIComponent(i.id)}`,{method:'DELETE'});const d=await r.json();if(!r.ok)throw new Error(d.error||'삭제하지 못했습니다.');await load();if(preview?.id===i.id)setPreview(null)}catch(e){setError(e instanceof Error?e.message:'삭제하지 못했습니다.')}finally{setBusy(false)}
+  }
+  async function moveItem(t:MediaType,id:string,targetId:string){
+    const list=visible(t),from=list.findIndex(x=>x.id===id),to=list.findIndex(x=>x.id===targetId);if(from<0||to<0||from===to)return;
+    const next=[...list];const [m]=next.splice(from,1);next.splice(to,0,m);
+    for(let i=0;i<next.length;i++)await fetch('/api/media',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({entity:'item',id:next[i].id,directoryId:next[i].directory_id,sortOrder:i})});
+    await load();
+  }
 
-  function folderTree(t:MediaType){const render=(parent:string|null,depth=0):React.ReactNode=>children(t,parent).map(d=><div key={d.id} style={{marginLeft:depth*8}}><div draggable onDragStart={()=>setDragFolder(d.id)} onDragEnd={()=>setDragFolder(null)} onDragOver={e=>{e.preventDefault();e.stopPropagation()}} onDrop={e=>{e.preventDefault();e.stopPropagation();if(dragFolder&&dragFolder!==d.id)void moveDir(t,dragFolder,d.id,e.clientY>e.currentTarget.getBoundingClientRect().top+e.currentTarget.getBoundingClientRect().height/2)}} style={{position:'relative',display:'flex',alignItems:'center',background:selected[t]===d.id?'#edf5ff':'transparent',borderRadius:5}}><button type="button" style={{...s.folder,fontWeight:selected[t]===d.id?800:600,color:selected[t]===d.id?colors[t]:'#365476',paddingLeft:4}} onClick={()=>setSelected(v=>({...v,[t]:d.id}))}>⋮⋮ 📁 {d.name}</button><button type="button" title="하위 디렉토리" style={{border:0,background:'transparent',color:colors[t],cursor:'pointer',fontSize:12}} onClick={()=>setDialog({mode:'create',type:t,parentId:d.id,name:''})}>＋</button><button type="button" title="이름 변경" style={{border:0,background:'transparent',color:'#7489a1',cursor:'pointer',fontSize:14}} onClick={()=>setDialog({mode:'rename',type:t,id:d.id,parentId:d.parent_id,name:d.name})}>✎</button><button type="button" title="삭제" style={{border:0,background:'transparent',color:'#d83b3b',cursor:'pointer',fontSize:12}} onClick={()=>void deleteDir(d)}>×</button></div>{render(d.id,depth+1)}</div>);return render(null)}
+  function folderTree(t:MediaType){
+    const render=(parent:string|null,depth=0):ReactNode=>children(t,parent).map(d=><div key={d.id} style={{marginLeft:depth*8}}>
+      <div draggable onDragStart={()=>setDragFolder(d.id)} onDragEnd={()=>setDragFolder(null)} onDragOver={e=>{e.preventDefault();e.stopPropagation()}} onDrop={e=>{e.preventDefault();e.stopPropagation();if(dragFolder&&dragFolder!==d.id)void moveDir(t,dragFolder,d.id,e.clientY>e.currentTarget.getBoundingClientRect().top+e.currentTarget.getBoundingClientRect().height/2)}} style={{position:'relative',display:'flex',alignItems:'center',background:selected[t]===d.id?'#edf5ff':'transparent',borderRadius:5}}>
+        <button type="button" style={{...s.folder,fontWeight:selected[t]===d.id?800:600,color:selected[t]===d.id?colors[t]:'#365476',paddingLeft:4}} onClick={()=>setSelected(v=>({...v,[t]:d.id}))}>⋮⋮ 📁 {d.name}</button>
+        <button type="button" title="하위 디렉토리" style={{border:0,background:'transparent',color:colors[t],cursor:'pointer',fontSize:12}} onClick={()=>setDialog({mode:'create',type:t,parentId:d.id,name:''})}>＋</button>
+        <button type="button" title="이름 변경" style={{border:0,background:'transparent',color:'#7489a1',cursor:'pointer',fontSize:14}} onClick={()=>setDialog({mode:'rename',type:t,id:d.id,parentId:d.parent_id,name:d.name})}>✎</button>
+        <button type="button" title="삭제" style={{border:0,background:'transparent',color:'#d83b3b',cursor:'pointer',fontSize:12}} onClick={()=>void deleteDir(d)}>×</button>
+      </div>{render(d.id,depth+1)}</div>);
+    return render(null);
+  }
+
+  function mediaThumb(i:MediaItem,t:MediaType){
+    if(t==='youtube')return <img src={i.thumbnail_url||`https://i.ytimg.com/vi/${ytId(i.youtube_url)}/mqdefault.jpg`} alt="YouTube 썸네일" style={s.thumb}/>;
+    if(i.media_type==='pdf')return <div style={{...s.thumb,display:'grid',placeItems:'center',fontSize:22,color:'#d83b3b',border:'1px solid #f0d0d0',background:'#fff7f7'}}>PDF</div>;
+    if(i.media_type==='image')return <img src={i.file_url||''} alt={i.title} style={s.thumb}/>;
+    return <video src={i.file_url||undefined} muted preload="metadata" style={s.thumb}/>;
+  }
 
   function card(t:MediaType){
     const list=visible(t);
-    const drop=(e:DragEvent<HTMLDivElement>)=>{e.preventDefault();setDragType(null);if(t==='youtube'){const raw=(e.dataTransfer.getData('text/uri-list')||e.dataTransfer.getData('text/plain')||'').split('\n')[0].trim();if(raw)void previewYoutube(raw)}else if(e.dataTransfer.files?.length)void files(e.dataTransfer.files,t as 'video'|'image')};
+    const drop=(e:DragEvent<HTMLDivElement>)=>{
+      e.preventDefault();setDragType(null);
+      if(t==='youtube'){
+        const raw=(e.dataTransfer.getData('text/uri-list')||e.dataTransfer.getData('text/plain')||'').split('\n')[0].trim();if(raw)void previewYoutube(raw);
+      }else if(e.dataTransfer.files?.length)void files(e.dataTransfer.files,t);
+    };
+    const accept=t==='video'?'video/*':t==='imagepdf'?'image/*,.pdf,application/pdf':'';
     return <section style={s.card}>
-      <div style={s.cardHead}><div><strong style={{fontSize:13,color:colors[t]}}>{labels[t]}</strong><div style={s.sub}>{t==='video'?'일반 동영상 파일을 저장합니다.':t==='youtube'?'YouTube URL을 저장하고 사이트 안에서 재생합니다.':'이미지 파일을 저장하고 미리봅니다.'}</div></div><button type="button" style={s.ghost} disabled={busy} onClick={()=>setDialog({mode:'create',type:t,parentId:selected[t]||null,name:''})}>＋ 새 디렉토리</button></div>
+      <div style={s.cardHead}><div><strong style={{fontSize:13,color:colors[t]}}>{labels[t]}</strong><div style={s.sub}>{t==='video'?'일반 동영상 파일을 저장합니다.':t==='youtube'?'YouTube URL을 저장하고 사이트 안에서 재생합니다.':'이미지와 PDF를 독립적으로 저장·관리합니다.'}</div></div><button type="button" style={s.ghost} disabled={busy} onClick={()=>setDialog({mode:'create',type:t,parentId:selected[t]||null,name:''})}>＋ 새 디렉토리</button></div>
       <div style={s.body}>
-        <aside style={s.folders}><button type="button" style={{...s.folder,background:selected[t]===''?'#edf5ff':'transparent',color:selected[t]===''?colors[t]:'#365476',fontWeight:800}} onClick={()=>setSelected(v=>({...v,[t]:''}))}>▣ 전체 {labels[t].replace(' 저장','').replace(' 링크','')}</button>{folderTree(t)}</aside>
+        <aside style={s.folders}>
+          <button type="button" style={{...s.folder,background:selected[t]===''?'#edf5ff':'transparent',color:selected[t]===''?colors[t]:'#365476',fontWeight:800}} onClick={()=>setSelected(v=>({...v,[t]:''}))}>▣ 전체 {t==='imagepdf'?'이미지&PDF':labels[t].replace(' 저장','').replace(' 링크','')}</button>
+          {folderTree(t)}
+        </aside>
         <main style={s.main}>
-          {t==='youtube'?<div onDragEnter={e=>{e.preventDefault();setDragType(t)}} onDragOver={e=>{e.preventDefault();setDragType(t)}} onDragLeave={()=>setDragType(null)} onDrop={drop} style={{...s.drop,borderColor:dragType===t?colors[t]:'#d0dbea',background:dragType===t?'#fff5f7':'#fbfdff'}}><div style={{fontSize:22,color:colors[t]}}>▶</div><strong style={{fontSize:11}}>YouTube URL을 드래그하거나 입력하세요</strong><div style={{display:'flex',width:'100%',gap:5}}><input value={youtubeUrl} onChange={e=>void previewYoutube(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." style={s.input}/><button type="button" style={{...s.button,background:colors[t],borderColor:colors[t]}} disabled={busy} onClick={()=>void addYoutube()}>추가</button></div>{youtubeMeta&&<div style={{display:'flex',gap:8,alignItems:'center',width:'100%'}}><img src={youtubeMeta.thumbnailUrl||''} alt="" style={{width:72,height:42,objectFit:'cover',borderRadius:4}}/><strong style={{fontSize:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{youtubeMeta.title}</strong></div>}</div>:<div onDragEnter={e=>{e.preventDefault();setDragType(t)}} onDragOver={e=>{e.preventDefault();setDragType(t)}} onDragLeave={()=>setDragType(null)} onDrop={drop} style={{...s.drop,borderColor:dragType===t?colors[t]:'#d0dbea',background:dragType===t?'#f5fbf7':'#fbfdff'}}><div style={{fontSize:25,color:colors[t]}}>⇧</div><strong style={{fontSize:11}}>{t==='video'?'동영상 파일을 드래그 앤 드롭하세요':'이미지 파일을 드래그 앤 드롭하세요'}</strong><button type="button" style={{...s.button,background:colors[t],borderColor:colors[t]}} disabled={busy} onClick={()=>t==='video'?videoInput.current?.click():imageInput.current?.click()}>파일 선택</button><span style={s.sub}>{t==='video'?'MP4, MOV, AVI, WEBM · 최대 500MB':'JPG, PNG, GIF, WEBP'}</span></div>}
-          {t==='video'&&<input ref={videoInput} hidden multiple type="file" accept="video/*" onChange={e=>void fileChange(e,'video')}/>} {t==='image'&&<input ref={imageInput} hidden multiple type="file" accept="image/*" onChange={e=>void fileChange(e,'image')}/>}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><strong style={{fontSize:11}}>{selected[t]?byType(t).find(d=>d.id===selected[t])?.name:`전체 ${labels[t].replace(' 저장','').replace(' 링크','')}`}</strong><span style={s.sub}>{list.length}개</span></div>
-          {list.length===0?<div style={{border:'1px dashed #d5e0ed',padding:20,textAlign:'center',borderRadius:7,color:'#9aaabd',fontSize:10}}>저장된 콘텐츠가 없습니다.</div>:<div style={s.list}>{list.map(i=>{const id=ytId(i.youtube_url);return <div key={i.id} draggable onDragStart={()=>setDragItem(i.id)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();if(dragItem)void moveItem(t,dragItem,i.id);setDragItem(null)}} onClick={()=>setPreview(i)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' ')setPreview(i)}} role="button" tabIndex={0} style={{...s.item,cursor:'pointer'}}>
-            <div aria-label={`${i.title} 미리보기`} style={{position:'relative',width:82,height:58,cursor:'pointer',overflow:'hidden',borderRadius:5,background:'#eef3f8'}}>
-              {t==='youtube'?<img src={i.thumbnail_url||`https://i.ytimg.com/vi/${id}/hqdefault.jpg`} alt="YouTube 썸네일" style={s.thumb}/>:t==='image'?<img src={i.file_url||''} alt={i.title} style={s.thumb}/>:<><video src={i.file_url||undefined} muted playsInline preload="metadata" style={s.thumb}/><span style={{position:'absolute',left:'50%',top:'50%',transform:'translate(-50%,-50%)',width:28,height:28,borderRadius:'50%',background:'rgba(0,0,0,.65)',color:'#fff',display:'grid',placeItems:'center',fontSize:13}}>▶</span></>}
+          {t==='youtube'?<div onDragEnter={e=>{e.preventDefault();setDragType(t)}} onDragOver={e=>{e.preventDefault();setDragType(t)}} onDragLeave={()=>setDragType(null)} onDrop={drop} style={{...s.drop,borderColor:dragType===t?colors[t]:'#d0dbea',background:dragType===t?'#fff5f7':'#fbfdff'}}>
+            <div style={{fontSize:22,color:colors[t]}}>▶</div><strong style={{fontSize:11}}>YouTube URL을 드래그하거나 입력하세요</strong>
+            <div style={{display:'flex',width:'100%',gap:5}}><input value={youtubeUrl} onChange={e=>void previewYoutube(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." style={s.input}/><button type="button" style={{...s.button,background:colors[t],borderColor:colors[t]}} disabled={busy} onClick={()=>void addYoutube()}>추가</button></div>
+            {youtubeMeta&&<div style={{display:'flex',gap:8,alignItems:'center',width:'100%'}}><img src={youtubeMeta.thumbnailUrl||''} alt="" style={{width:72,height:42,objectFit:'cover',borderRadius:4}}/><strong style={{fontSize:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{youtubeMeta.title}</strong></div>}
+          </div>:<>
+            <div onDragEnter={e=>{e.preventDefault();setDragType(t)}} onDragOver={e=>{e.preventDefault();setDragType(t)}} onDragLeave={()=>setDragType(null)} onDrop={drop} style={{...s.drop,borderColor:dragType===t?colors[t]:'#d0dbea',background:dragType===t?'#f5fbf7':'#fbfdff'}}>
+              <div style={{fontSize:25,color:colors[t]}}>⇧</div><strong style={{fontSize:11}}>{t==='video'?'동영상 파일을 드래그 앤 드롭하세요':'이미지 또는 PDF 파일을 드래그 앤 드롭하세요'}</strong>
+              <button type="button" style={{...s.button,background:colors[t],borderColor:colors[t]}} disabled={busy} onClick={()=>t==='video'?videoInput.current?.click():imagePdfInput.current?.click()}>파일 선택</button>
+              <span style={s.sub}>{t==='video'?'MP4, MOV, AVI, WEBM · 최대 500MB':'JPG, PNG, GIF, WEBP, PDF · 최대 500MB'}</span>
             </div>
-            <div style={{minWidth:0}}><strong style={{display:'block',fontSize:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'#163d67'}}>{i.title}</strong><span style={{display:'block',fontSize:8,color:'#8293a8',marginTop:3}}>{size(i.size_bytes)} {i.created_at&&`· ${new Date(i.created_at).toLocaleDateString('ko-KR')}`}</span>{t==='youtube'&&<span style={{fontSize:8,color:'#d44'}}>YouTube · 클릭하여 재생</span>}{t==='video'&&<span style={{fontSize:8,color:'#1769e8'}}>동영상 · 클릭하여 재생</span>}{t==='image'&&<span style={{fontSize:8,color:'#16a05d'}}>이미지 · 클릭하여 확대</span>}</div>
-            <div style={{display:'flex',gap:3}}>{(t==='video'||t==='image')&&i.file_url&&<a href={i.file_url} download target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{...s.ghost,textDecoration:'none',display:'grid',placeItems:'center',width:28,padding:0}} title="다운로드">↓</a>}<button type="button" style={s.danger} disabled={busy} onClick={e=>{e.stopPropagation();void removeItem(i)}} title="삭제">×</button></div>
+            {t==='video'&&<input ref={videoInput} hidden multiple type="file" accept={accept} onChange={e=>void fileChange(e,'video')}/>} 
+            {t==='imagepdf'&&<input ref={imagePdfInput} hidden multiple type="file" accept={accept} onChange={e=>void fileChange(e,'imagepdf')}/>} 
+          </>}
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><strong style={{fontSize:11}}>{selected[t]?byType(t).find(d=>d.id===selected[t])?.name:`전체 ${t==='imagepdf'?'이미지&PDF':labels[t].replace(' 저장','').replace(' 링크','')}`}</strong><span style={s.sub}>{list.length}개</span></div>
+          {list.length===0?<div style={{border:'1px dashed #d5e0ed',padding:20,textAlign:'center',borderRadius:7,color:'#9aaabd',fontSize:10}}>저장된 콘텐츠가 없습니다.</div>:<div style={s.list}>{list.map(i=>{return <div key={i.id} draggable onDragStart={()=>setDragItem(i.id)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();if(dragItem)void moveItem(t,dragItem,i.id);setDragItem(null)}} style={s.item}>
+            <button type="button" onClick={()=>setPreview(i)} style={{border:0,padding:0,background:'transparent',cursor:'pointer'}} title={i.media_type==='pdf'?'PDF 크게 보기':t==='video'?'동영상 재생':'크게 보기'}>{mediaThumb(i,t)}</button>
+            <div style={{minWidth:0}}><strong style={{display:'block',fontSize:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'#163d67'}}>{i.title}</strong><span style={{display:'block',fontSize:8,color:'#8293a8',marginTop:3}}>{size(i.size_bytes)} {i.created_at&&`· ${new Date(i.created_at).toLocaleDateString('ko-KR')}`}</span>{i.media_type==='pdf'&&<span style={{fontSize:8,color:'#d83b3b'}}>PDF</span>}{i.media_type==='youtube'&&<span style={{fontSize:8,color:'#d44'}}>YouTube</span>}</div>
+            <div style={{display:'flex',gap:3}}>{(i.media_type==='video'||i.media_type==='image'||i.media_type==='pdf')&&i.file_url&&<a href={i.file_url} download target="_blank" rel="noreferrer" style={{...s.ghost,textDecoration:'none',display:'grid',placeItems:'center',width:28,padding:0}} title="다운로드">↓</a>}<button type="button" style={s.danger} disabled={busy} onClick={()=>void removeItem(i)} title="삭제">×</button></div>
           </div>})}</div>}
         </main>
       </div>
-    </section>
+    </section>;
   }
 
-  if(!isAdmin)return <section style={s.shell}><div style={{textAlign:'center',padding:'15px 8px'}}><div style={{fontSize:20}}>🔒</div><strong style={{fontSize:12}}>동영상 & 이미지</strong><p style={s.sub}>로그인 후 동영상 저장, YouTube 링크, 이미지 저장 기능을 이용할 수 있습니다.</p></div></section>;
-  return <section style={s.shell}><div style={s.head}><div><h2 style={s.h2}>동영상 & 이미지</h2><p style={s.sub}>동영상, YouTube 링크, 이미지를 각각 독립적으로 관리하세요.</p></div><button type="button" style={s.ghost} onClick={()=>void load()}>↻ 새로고침</button></div>{error&&<div style={{marginTop:8,padding:'7px 9px',border:'1px solid #efc0c0',background:'#fff7f7',color:'#c33',borderRadius:6,fontSize:10}}>{error}</div>}<div style={s.grid}>{(['video','youtube','image'] as MediaType[]).map(card)}</div>
+  if(!isAdmin)return <section style={s.shell}><div style={{textAlign:'center',padding:'15px 8px'}}><div style={{fontSize:20}}>🔒</div><strong style={{fontSize:12}}>동영상 & 이미지&PDF</strong><p style={s.sub}>로그인 후 동영상 저장, YouTube 링크, 이미지&PDF 저장 기능을 이용할 수 있습니다.</p></div></section>;
+
+  return <section style={s.shell}>
+    <div style={s.head}><div><h2 style={s.h2}>동영상 & 이미지&PDF</h2><p style={s.sub}>동영상, YouTube, 이미지와 PDF를 각각 독립적으로 관리하세요.</p></div><button type="button" style={s.ghost} onClick={()=>void load()}>↻ 새로고침</button></div>
+    {error&&<div style={{marginTop:8,padding:'7px 9px',border:'1px solid #efc0c0',background:'#fff7f7',color:'#c33',borderRadius:6,fontSize:10}}>{error}</div>}
+    <div style={s.grid}>{(['video','youtube','imagepdf'] as MediaType[]).map(card)}</div>
     {dialog&&<div style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(5,20,40,.35)',display:'grid',placeItems:'center',padding:20}}><div style={{width:360,maxWidth:'95vw',background:'#fff',borderRadius:10,padding:16,boxShadow:'0 20px 60px rgba(0,0,0,.25)'}}><strong style={{fontSize:14}}>{dialog.mode==='create'?'새 디렉토리 만들기':'디렉토리 이름 변경'}</strong><p style={s.sub}>{labels[dialog.type]}</p><input autoFocus value={dialog.name} onChange={e=>setDialog({...dialog,name:e.target.value})} onKeyDown={e=>{if(e.key==='Enter')void saveDirectory()}} placeholder="디렉토리 이름" style={{...s.input,width:'100%',boxSizing:'border-box',marginTop:8}}/><div style={{display:'flex',justifyContent:'flex-end',gap:6,marginTop:12}}><button type="button" style={s.ghost} onClick={()=>setDialog(null)}>취소</button><button type="button" style={s.button} disabled={busy||!dialog.name.trim()} onClick={()=>void saveDirectory()}>{dialog.mode==='create'?'만들기':'저장'}</button></div></div></div>}
-    {preview&&<div style={{position:'fixed',inset:0,zIndex:1100,background:'rgba(4,14,28,.72)',display:'grid',placeItems:'center',padding:24}} onClick={()=>setPreview(null)}><div style={{width:'min(900px,95vw)',background:'#fff',borderRadius:10,padding:12,boxShadow:'0 20px 80px rgba(0,0,0,.4)'}} onClick={e=>e.stopPropagation()}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,marginBottom:8}}><div style={{minWidth:0}}><strong style={{display:'block',fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{preview.title}</strong><span style={{fontSize:9,color:'#7890aa'}}>{preview.media_type==='youtube'?'YouTube 플레이어':preview.media_type==='video'?'동영상 플레이어':'이미지 미리보기'}</span></div><button type="button" style={s.ghost} onClick={()=>setPreview(null)}>닫기 ×</button></div>{preview.media_type==='youtube'?<div style={{position:'relative',paddingTop:'56.25%',background:'#000',borderRadius:7,overflow:'hidden'}}><iframe src={`https://www.youtube.com/embed/${ytId(preview.youtube_url)}?autoplay=1&rel=0`} title={preview.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen style={{position:'absolute',inset:0,width:'100%',height:'100%',border:0}}/> </div>:preview.media_type==='image'?<div style={{display:'grid',placeItems:'center',background:'#f4f7fb',borderRadius:7,padding:12}}><img src={preview.file_url||''} alt={preview.title} style={{display:'block',maxWidth:'100%',maxHeight:'75vh',objectFit:'contain'}}/></div>:<video src={preview.file_url||undefined} controls autoPlay playsInline preload="auto" style={{width:'100%',maxHeight:'75vh',background:'#000',borderRadius:7}}/>}</div></div>}
+    {preview&&<div style={{position:'fixed',inset:0,zIndex:1100,background:'rgba(4,14,28,.78)',display:'grid',placeItems:'center',padding:24}} onClick={()=>setPreview(null)}><div style={{width:'min(1000px,96vw)',background:'#fff',borderRadius:10,padding:12}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,marginBottom:8}}><strong style={{fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{preview.title}</strong><div style={{display:'flex',gap:5}}>{preview.file_url&&(preview.media_type==='video'||preview.media_type==='image'||preview.media_type==='pdf')&&<a href={preview.file_url} download target="_blank" rel="noreferrer" style={{...s.ghost,textDecoration:'none'}}>다운로드</a>}<button type="button" style={s.ghost} onClick={()=>setPreview(null)}>닫기</button></div></div>
+      {preview.media_type==='youtube'?<div style={{position:'relative',paddingTop:'56.25%'}}><iframe src={`https://www.youtube.com/embed/${ytId(preview.youtube_url)}`} title={preview.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen style={{position:'absolute',inset:0,width:'100%',height:'100%',border:0,borderRadius:7}}/></div>:preview.media_type==='image'?<img src={preview.file_url||''} alt={preview.title} style={{display:'block',maxWidth:'100%',maxHeight:'78vh',margin:'0 auto',objectFit:'contain'}}/>:preview.media_type==='pdf'?<div style={{height:'78vh',background:'#f4f7fb',borderRadius:7,overflow:'hidden'}}><iframe src={preview.file_url||''} title={preview.title} style={{width:'100%',height:'100%',border:0}}/></div>:<div><video ref={videoRef} src={preview.file_url||undefined} controls autoPlay playsInline preload="auto" muted={false} onLoadedData={e=>{e.currentTarget.currentTime=0;void e.currentTarget.play().catch(()=>{})}} onClick={e=>void e.currentTarget.play().catch(()=>{})} onError={()=>setError('동영상 재생에 실패했습니다. 파일 형식 또는 동영상 코덱을 확인해주세요.')} style={{display:'block',width:'100%',maxHeight:'78vh',background:'#000',borderRadius:7}}/><div style={{fontSize:9,color:'#8293a8',marginTop:5}}>재생이 자동으로 시작되지 않으면 동영상 화면의 ▶ 버튼을 눌러주세요.</div></div>}
+    </div></div>}
   </section>;
 }
