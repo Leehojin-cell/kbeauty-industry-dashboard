@@ -10,7 +10,6 @@ export default async function HomePage() {
     <>
       <InteractiveDashboard isAdmin={isAdmin} />
       <MediaManager isAdmin={isAdmin} />
-      <style jsx global>{`.k-bottomSectors{display:none!important}`}</style>
     </>
   );
 }
