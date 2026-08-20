@@ -5,6 +5,11 @@ import { dbConfigured, sql } from "../../../lib/db";
 
 export const dynamic = "force-dynamic";
 
+async function requireAdmin() {
+  const cookieStore = await cookies();
+  return verifyAuthToken(cookieStore.get(COOKIE_NAME)?.value);
+}
+
 export async function GET() {
   if (!dbConfigured()) return NextResponse.json({ ok: false, configured: false, companies: [] }, { status: 503 });
   const result = await sql`SELECT * FROM companies ORDER BY manual_order ASC, company ASC`;
@@ -12,9 +17,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const cookieStore = await cookies();
-  const loggedIn = await verifyAuthToken(cookieStore.get(COOKIE_NAME)?.value);
-  if (!loggedIn) return NextResponse.json({ ok: false, error: "관리자 로그인 필요" }, { status: 401 });
+  if (!(await requireAdmin())) return NextResponse.json({ ok: false, error: "관리자 로그인 필요" }, { status: 401 });
   if (!dbConfigured()) return NextResponse.json({ ok: false, error: "POSTGRES_URL 미설정" }, { status: 503 });
 
   const body = await request.json();
@@ -27,4 +30,17 @@ export async function PUT(request: Request) {
     ON CONFLICT (id) DO UPDATE SET category=EXCLUDED.category, company=EXCLUDED.company, revenue_2025=EXCLUDED.revenue_2025, revenue_2025_consolidated=EXCLUDED.revenue_2025_consolidated, revenue_2024=EXCLUDED.revenue_2024, revenue_2024_consolidated=EXCLUDED.revenue_2024_consolidated, brands=EXCLUDED.brands, odm=EXCLUDED.odm, items=EXCLUDED.items, ownership=EXCLUDED.ownership, location=EXCLUDED.location, hq=EXCLUDED.hq, seoul_office=EXCLUDED.seoul_office, gyeonggi_office=EXCLUDED.gyeonggi_office, factory=EXCLUDED.factory, logistics=EXCLUDED.logistics, memo=EXCLUDED.memo, manual_order=EXCLUDED.manual_order, updated_at=NOW()
   `;
   return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(request: Request) {
+  if (!(await requireAdmin())) return NextResponse.json({ ok: false, error: "관리자 로그인 필요" }, { status: 401 });
+  if (!dbConfigured()) return NextResponse.json({ ok: false, error: "POSTGRES_URL 미설정" }, { status: 503 });
+
+  const body = await request.json().catch(() => ({}));
+  const rawIds = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : [];
+  const ids = [...new Set(rawIds.map((id: unknown) => String(id).trim()).filter(Boolean))];
+  if (!ids.length) return NextResponse.json({ ok: false, error: "삭제할 기업 ID가 없습니다." }, { status: 400 });
+
+  const result = await sql`DELETE FROM companies WHERE id = ANY(${ids}) RETURNING id, company`;
+  return NextResponse.json({ ok: true, deleted: result.rows });
 }
