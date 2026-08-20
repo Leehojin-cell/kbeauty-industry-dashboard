@@ -3,8 +3,6 @@
 .dashboard-shell .k-dashboard{max-width:none!important;width:100%!important;margin:0!important;padding:18px 20px 0!important;box-sizing:border-box!important;}
 .dashboard-shell .k-bottomSectors{display:none!important;}
 .dashboard-shell .media-page-wrap{width:100%!important;max-width:none!important;margin:8px 0 0!important;padding:0 20px 18px!important;box-sizing:border-box!important;}
-
-/* Keep the existing dashboard cards intact. */
 .bottom{display:grid!important;grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr)!important;gap:10px!important;align-items:start!important;}
 .bottom>.card{min-width:0!important;}
 .bottom>.card:last-child{position:sticky;top:82px;}
@@ -18,41 +16,42 @@
 .k-bottom .tr{grid-template-columns:42px minmax(150px,1.6fr) minmax(125px,1.2fr) 100px 100px 75px 110px!important;}
 .k-four .tr strong,.k-bottom .tr strong{display:block!important;min-width:0!important;white-space:nowrap!important;word-break:keep-all!important;overflow:hidden!important;text-overflow:ellipsis!important;}
 
-/* Media is a true final row on the same canvas, with three equal cards. */
+/* Media row: compact like the reference image, but with readable UI typography. */
 .dashboard-shell .media-manager{margin:0!important;padding:8px!important;border-radius:7px!important;box-shadow:0 2px 8px rgba(30,55,90,.05)!important;box-sizing:border-box!important;}
-.dashboard-shell .media-title{margin:0 2px 6px!important;min-height:18px!important;}
-.dashboard-shell .media-title h2{font-size:11px!important;line-height:1.1!important;}
-.dashboard-shell .media-title p{font-size:6px!important;line-height:1.1!important;margin-top:2px!important;}
+.dashboard-shell .media-title{margin:0 2px 6px!important;min-height:20px!important;}
+.dashboard-shell .media-title h2{font-size:14px!important;line-height:1.15!important;}
+.dashboard-shell .media-title p{font-size:8px!important;line-height:1.2!important;margin-top:2px!important;}
 .dashboard-shell .media-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;align-items:stretch!important;}
-.dashboard-shell .media-card{height:165px!important;min-height:165px!important;max-height:165px!important;border-radius:6px!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
-.dashboard-shell .media-card-head{height:27px!important;min-height:27px!important;padding:4px 5px!important;box-sizing:border-box!important;}
-.dashboard-shell .media-card-head h3{font-size:8px!important;line-height:1!important;}
-.dashboard-shell .media-card-head p{font-size:5px!important;line-height:1!important;margin-top:2px!important;}
-.dashboard-shell .media-add-dir{font-size:5px!important;padding:2px 5px!important;line-height:1!important;}
-.dashboard-shell .media-body{display:grid!important;grid-template-columns:62px minmax(0,1fr)!important;height:138px!important;min-height:138px!important;max-height:138px!important;}
-.dashboard-shell .media-folders{padding:4px 3px!important;gap:1px!important;overflow:hidden!important;}
-.dashboard-shell .media-folders strong,.dashboard-shell .media-folders button{font-size:5.5px!important;line-height:1.1!important;}
-.dashboard-shell .media-folders button{padding:2px!important;}
+.dashboard-shell .media-card{height:172px!important;min-height:172px!important;max-height:172px!important;border-radius:6px!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+.dashboard-shell .media-card-head{height:31px!important;min-height:31px!important;padding:5px 6px!important;box-sizing:border-box!important;}
+.dashboard-shell .media-card-head h3{font-size:11px!important;line-height:1.05!important;}
+.dashboard-shell .media-card-head p{font-size:7px!important;line-height:1.05!important;margin-top:2px!important;}
+.dashboard-shell .media-add-dir{font-size:7px!important;padding:3px 5px!important;line-height:1!important;}
+.dashboard-shell .media-body{display:grid!important;grid-template-columns:72px minmax(0,1fr)!important;height:141px!important;min-height:141px!important;max-height:141px!important;}
+.dashboard-shell .media-folders{padding:5px 4px!important;gap:2px!important;overflow:hidden!important;}
+.dashboard-shell .media-folders strong,.dashboard-shell .media-folders button{font-size:8px!important;line-height:1.15!important;}
+.dashboard-shell .media-folders button{padding:3px 2px!important;}
 .dashboard-shell .media-folders .folder-new{margin-top:auto!important;}
-.dashboard-shell .media-main{padding:4px!important;min-width:0!important;overflow:hidden!important;}
-.dashboard-shell .dropbox{min-height:47px!important;height:47px!important;max-height:47px!important;padding:3px!important;gap:2px!important;border-radius:4px!important;}
-.dashboard-shell .dropbox span{font-size:11px!important;line-height:1!important;}
-.dashboard-shell .dropbox b{font-size:5.5px!important;line-height:1.1!important;}
-.dashboard-shell .dropbox small{font-size:4.5px!important;line-height:1!important;}
-.dashboard-shell .dropbox button{font-size:5px!important;padding:2px 5px!important;line-height:1!important;}
-.dashboard-shell .youtube-add .dropbox{min-height:47px!important;height:47px!important;align-items:stretch!important;}
-.dashboard-shell .youtube-add input{height:15px!important;min-height:15px!important;font-size:5px!important;padding:0 3px!important;}
-.dashboard-shell .youtube-add button{font-size:5px!important;padding:2px 5px!important;line-height:1!important;}
-.dashboard-shell .media-list{margin-top:3px!important;max-height:55px!important;gap:2px!important;overflow:hidden!important;}
-.dashboard-shell .media-item{grid-template-columns:34px minmax(0,1fr) 9px!important;min-height:25px!important;max-height:25px!important;padding:2px!important;gap:3px!important;}
-.dashboard-shell .media-item video,.dashboard-shell .media-item img,.dashboard-shell .yt-thumb{width:34px!important;height:21px!important;}
+.dashboard-shell .media-main{padding:5px!important;min-width:0!important;overflow:hidden!important;}
+.dashboard-shell .dropbox{min-height:50px!important;height:50px!important;max-height:50px!important;padding:4px!important;gap:3px!important;border-radius:4px!important;}
+.dashboard-shell .dropbox span{font-size:14px!important;line-height:1!important;}
+.dashboard-shell .dropbox b{font-size:8px!important;line-height:1.15!important;}
+.dashboard-shell .dropbox small{font-size:7px!important;line-height:1!important;}
+.dashboard-shell .dropbox button{font-size:7px!important;padding:3px 6px!important;line-height:1!important;}
+.dashboard-shell .youtube-add .dropbox{min-height:50px!important;height:50px!important;align-items:stretch!important;}
+.dashboard-shell .youtube-add input{height:18px!important;min-height:18px!important;font-size:7px!important;padding:0 4px!important;}
+.dashboard-shell .youtube-add button{font-size:7px!important;padding:3px 6px!important;line-height:1!important;}
+.dashboard-shell .media-list{margin-top:3px!important;max-height:58px!important;gap:2px!important;overflow:hidden!important;}
+.dashboard-shell .media-item{grid-template-columns:38px minmax(0,1fr) 10px!important;min-height:27px!important;max-height:27px!important;padding:2px!important;gap:3px!important;}
+.dashboard-shell .media-item video,.dashboard-shell .media-item img,.dashboard-shell .yt-thumb{width:38px!important;height:23px!important;}
 .dashboard-shell .media-meta{overflow:hidden!important;}
-.dashboard-shell .media-meta b{font-size:5.5px!important;line-height:1!important;}
-.dashboard-shell .media-meta small,.dashboard-shell .media-meta a{font-size:4.5px!important;line-height:1!important;}
-.dashboard-shell .media-delete{font-size:7px!important;}
-.dashboard-shell .media-empty{height:24px!important;min-height:24px!important;padding:3px!important;font-size:5px!important;line-height:1!important;}
+.dashboard-shell .media-meta b{font-size:7px!important;line-height:1.05!important;}
+.dashboard-shell .media-meta small,.dashboard-shell .media-meta a{font-size:6px!important;line-height:1.05!important;}
+.dashboard-shell .media-delete{font-size:8px!important;}
+.dashboard-shell .media-empty{height:27px!important;min-height:27px!important;padding:4px!important;font-size:7px!important;line-height:1.1!important;}
 .dashboard-shell .media-manager.locked{min-height:72px!important;}
 .dashboard-shell .media-lock{min-height:56px!important;}
+.dashboard-shell .media-error{font-size:9px!important;line-height:1.35!important;padding:6px 8px!important;word-break:break-word!important;}
 
 @media(max-width:900px){
   .dashboard-shell{width:calc(100% - 12px)!important;}
