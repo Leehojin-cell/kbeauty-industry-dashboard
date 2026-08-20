@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071b3a"/><stop offset="1" stop-color="#123d75"/></linearGradient></defs>
+<rect width="1200" height="630" fill="#f4f7fb"/>
+<rect width="1200" height="150" fill="url(#bg)"/>
+<text x="70" y="78" fill="white" font-family="Arial,sans-serif" font-size="42" font-weight="700">2026 K-뷰티 화장품 산업 지형도</text>
+<text x="70" y="120" fill="#c9dbf5" font-family="Arial,sans-serif" font-size="21">한국 화장품 산업 데이터 · 기업 분석 · 미디어 관리 대시보드</text>
+<g transform="translate(70 205)">
+<rect width="330" height="330" rx="18" fill="white" stroke="#d7e1ed"/><rect x="24" y="25" width="282" height="48" rx="10" fill="#eef5ff"/><text x="45" y="57" fill="#1769e8" font-family="Arial,sans-serif" font-size="22" font-weight="700">동영상 저장</text><rect x="24" y="95" width="282" height="70" rx="10" fill="#fbfdff" stroke="#9dbff0" stroke-dasharray="7 6"/><text x="141" y="137" text-anchor="middle" fill="#4d6d91" font-family="Arial,sans-serif" font-size="17">드래그 앤 드롭</text><rect x="24" y="185" width="282" height="108" rx="10" fill="#fff" stroke="#e1e8f1"/><rect x="40" y="202" width="88" height="70" rx="7" fill="#dce8f7"/><text x="145" y="228" fill="#163d67" font-family="Arial,sans-serif" font-size="17">K-뷰티 시장 전망</text><text x="145" y="255" fill="#8293a8" font-family="Arial,sans-serif" font-size="14">MP4 · MOV · WEBM</text>
+</g>
+<g transform="translate(435 205)">
+<rect width="330" height="330" rx="18" fill="white" stroke="#d7e1ed"/><rect x="24" y="25" width="282" height="48" rx="10" fill="#fff1f4"/><text x="45" y="57" fill="#e62143" font-family="Arial,sans-serif" font-size="22" font-weight="700">YouTube 링크</text><rect x="24" y="95" width="282" height="54" rx="10" fill="#fff" stroke="#c7d6e6"/><text x="42" y="129" fill="#8b9caf" font-family="Arial,sans-serif" font-size="15">YouTube URL 입력</text><rect x="24" y="169" width="282" height="124" rx="10" fill="#fff" stroke="#e1e8f1"/><rect x="40" y="187" width="110" height="70" rx="7" fill="#f0d6db"/><polygon points="86,210 86,242 112,226" fill="#e62143"/><text x="165" y="216" fill="#163d67" font-family="Arial,sans-serif" font-size="17">자동 제목 + 썸네일</text><text x="165" y="245" fill="#8293a8" font-family="Arial,sans-serif" font-size="14">사이트 안에서 재생</text>
+</g>
+<g transform="translate(800 205)">
+<rect width="330" height="330" rx="18" fill="white" stroke="#d7e1ed"/><rect x="24" y="25" width="282" height="48" rx="10" fill="#edf9f2"/><text x="45" y="57" fill="#16a05d" font-family="Arial,sans-serif" font-size="22" font-weight="700">이미지 저장</text><rect x="24" y="95" width="282" height="70" rx="10" fill="#fbfdff" stroke="#9fd7b8" stroke-dasharray="7 6"/><text x="141" y="137" text-anchor="middle" fill="#4d8064" font-family="Arial,sans-serif" font-size="17">이미지 드래그 앤 드롭</text><rect x="24" y="185" width="122" height="108" rx="10" fill="#e7f1e9"/><rect x="160" y="185" width="146" height="108" rx="10" fill="#f4f7fb"/><text x="183" y="225" fill="#163d67" font-family="Arial,sans-serif" font-size="16">썸네일</text><text x="183" y="253" fill="#8293a8" font-family="Arial,sans-serif" font-size="14">확대 미리보기</text>
+</g>
+</svg>
