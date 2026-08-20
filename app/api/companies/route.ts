@@ -43,6 +43,12 @@ export async function DELETE(request: Request) {
   );
   if (!ids.length) return NextResponse.json({ ok: false, error: "삭제할 기업 ID가 없습니다." }, { status: 400 });
 
-  const result = await sql`DELETE FROM companies WHERE id = ANY(${ids}) RETURNING id, company`;
+  // @vercel/postgres accepts a flat Primitive[] for sql.query parameters.
+  // Build a parameterized IN list rather than interpolating a string[] into sql``.
+  const placeholders = ids.map((_, index) => `$${index + 1}`).join(", ");
+  const result = await sql.query(
+    `DELETE FROM companies WHERE id IN (${placeholders}) RETURNING id, company`,
+    ids
+  );
   return NextResponse.json({ ok: true, deleted: result.rows });
 }
