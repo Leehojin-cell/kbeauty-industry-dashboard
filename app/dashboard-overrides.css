@@ -49,14 +49,113 @@
   text-overflow: ellipsis !important;
 }
 
-/* Put the media manager on the same centered canvas as the dashboard. */
+/* Media section: same visual language as the reference dashboard. */
 .media-page-wrap {
   max-width: 1280px;
   width: calc(100% - 24px);
   margin: 0 auto;
   padding: 0 0 18px;
 }
-.media-page-wrap .media-manager { margin-top: 0; }
+.media-page-wrap .media-manager {
+  margin: 8px 0 18px !important;
+  padding: 10px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(30,55,90,.05) !important;
+}
+.media-page-wrap .media-title {
+  margin: 0 2px 8px !important;
+  min-height: 28px;
+}
+.media-page-wrap .media-title h2 {
+  font-size: 12px !important;
+}
+.media-page-wrap .media-title p {
+  font-size: 8px !important;
+}
+.media-page-wrap .media-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+}
+.media-page-wrap .media-card {
+  height: 276px !important;
+  min-height: 276px !important;
+  border-radius: 7px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+.media-page-wrap .media-card-head {
+  height: 43px !important;
+  min-height: 43px !important;
+  padding: 7px 8px !important;
+  align-items: center !important;
+}
+.media-page-wrap .media-card-head h3 {
+  font-size: 10px !important;
+}
+.media-page-wrap .media-card-head p {
+  margin-top: 2px !important;
+  font-size: 7px !important;
+}
+.media-page-wrap .media-add-dir {
+  padding: 3px 6px !important;
+  font-size: 7px !important;
+}
+.media-page-wrap .media-body {
+  grid-template-columns: 88px minmax(0, 1fr) !important;
+  height: 233px !important;
+  min-height: 233px !important;
+}
+.media-page-wrap .media-folders {
+  padding: 7px 5px !important;
+  gap: 2px !important;
+}
+.media-page-wrap .media-folders strong,
+.media-page-wrap .media-folders button {
+  font-size: 7px !important;
+}
+.media-page-wrap .media-main {
+  padding: 7px !important;
+}
+.media-page-wrap .dropbox {
+  min-height: 82px !important;
+  height: 82px !important;
+  padding: 6px !important;
+  gap: 3px !important;
+}
+.media-page-wrap .dropbox span { font-size: 16px !important; }
+.media-page-wrap .dropbox b { font-size: 7px !important; }
+.media-page-wrap .dropbox small { font-size: 6px !important; }
+.media-page-wrap .dropbox button { font-size: 7px !important; padding: 3px 7px !important; }
+.media-page-wrap .youtube-add input { height: 22px !important; font-size: 7px !important; }
+.media-page-wrap .youtube-add button { font-size: 7px !important; padding: 4px 8px !important; }
+.media-page-wrap .media-list {
+  margin-top: 6px !important;
+  max-height: 122px !important;
+  gap: 4px !important;
+}
+.media-page-wrap .media-item {
+  grid-template-columns: 48px minmax(0, 1fr) 14px !important;
+  min-height: 42px !important;
+  padding: 4px !important;
+  gap: 5px !important;
+}
+.media-page-wrap .media-item video,
+.media-page-wrap .media-item img,
+.media-page-wrap .yt-thumb {
+  width: 48px !important;
+  height: 34px !important;
+}
+.media-page-wrap .media-meta b { font-size: 7px !important; }
+.media-page-wrap .media-meta small,
+.media-page-wrap .media-meta a { font-size: 6px !important; }
+.media-page-wrap .media-empty { height: 42px !important; font-size: 7px !important; }
+.media-page-wrap .media-manager.locked {
+  min-height: 110px !important;
+}
+.media-page-wrap .media-lock {
+  min-height: 88px !important;
+}
 
 @media (max-width: 1200px) {
   .k-dashboard,
@@ -72,9 +171,16 @@
   .k-bottom .tr { min-width: 700px; }
   .k-four .table,
   .k-bottom .table { overflow-x: auto !important; }
+  .media-page-wrap .media-grid { grid-template-columns: 1fr 1fr !important; }
+  .media-page-wrap .media-card:last-child { grid-column: 1 / -1; }
 }
 
 @media (max-width: 1000px) {
   .bottom { grid-template-columns: 1fr !important; }
   .bottom > .card:last-child { position: static; }
+}
+
+@media (max-width: 720px) {
+  .media-page-wrap .media-grid { grid-template-columns: 1fr !important; }
+  .media-page-wrap .media-card:last-child { grid-column: auto; }
 }
