@@ -1,305 +1,84 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, useState, type DragEvent, type ChangeEvent } from "react";
-import { upload } from "@vercel/blob/client";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { upload } from '@vercel/blob/client';
 
-type MediaType = "video" | "youtube" | "image";
-type Directory = { id: string; media_type: MediaType; name: string };
-type MediaItem = {
-  id: string;
-  directory_id: string | null;
-  media_type: MediaType;
-  title: string;
-  file_url: string | null;
-  blob_pathname?: string | null;
-  youtube_url: string | null;
-  mime_type: string | null;
-  size_bytes: number | null;
-  created_at: string;
+type MediaType = 'video' | 'youtube' | 'image';
+type Directory = { id: string; media_type: MediaType; name: string; parent_id: string | null; sort_order: number };
+type MediaItem = { id: string; directory_id: string | null; media_type: MediaType; title: string; file_url: string | null; blob_pathname?: string | null; youtube_url: string | null; thumbnail_url?: string | null; mime_type: string | null; size_bytes: number | null; sort_order: number; created_at: string };
+
+const labels: Record<MediaType,string> = { video:'동영상 저장', youtube:'YouTube 링크', image:'이미지 저장' };
+const colors: Record<MediaType,string> = { video:'#1769e8', youtube:'#e62143', image:'#16a05d' };
+
+function ytId(value: string | null) {
+  if (!value) return '';
+  try { const u = new URL(value); if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('/')[0]; if (u.hostname.endsWith('youtube.com')) return u.searchParams.get('v') || u.pathname.match(/\/(?:embed|shorts|live)\/([^/?]+)/)?.[1] || ''; } catch {}
+  return '';
+}
+function size(n:number|null){ if(!n)return ''; return n<1024*1024?`${Math.max(1,Math.round(n/1024))}KB`:`${(n/1024/1024).toFixed(1)}MB`; }
+function fileTitle(name:string){ return name.replace(/\.[^.]+$/,'').trim() || name; }
+
+const s = {
+  shell:{border:'1px solid #d6e1ee',borderRadius:10,background:'#fff',padding:12,boxShadow:'0 2px 8px rgba(15,45,80,.05)',color:'#102f55'},
+  head:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8},
+  h2:{margin:0,fontSize:15,fontWeight:800}, sub:{margin:'3px 0 0',fontSize:10,color:'#7890aa'},
+  grid:{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:10,marginTop:10},
+  card:{border:'1px solid #d7e1ed',borderRadius:9,overflow:'hidden',minWidth:0,background:'#fff'},
+  cardHead:{padding:'9px 10px',borderBottom:'1px solid #e3eaf2',display:'flex',justifyContent:'space-between',alignItems:'center',gap:6},
+  body:{display:'grid',gridTemplateColumns:'150px minmax(0,1fr)',minHeight:320},
+  folders:{borderRight:'1px solid #e3eaf2',background:'#fbfdff',padding:7,overflowY:'auto',maxHeight:420},
+  main:{minWidth:0,padding:9,display:'flex',flexDirection:'column',gap:8},
+  button:{height:28,border:'1px solid #1769e8',background:'#1769e8',color:'#fff',borderRadius:6,padding:'0 9px',fontSize:10,fontWeight:800,cursor:'pointer'},
+  ghost:{height:28,border:'1px solid #bcd0e5',background:'#fff',color:'#315574',borderRadius:6,padding:'0 8px',fontSize:10,fontWeight:700,cursor:'pointer'},
+  folder:{display:'flex',alignItems:'center',gap:4,width:'100%',border:0,background:'transparent',borderRadius:5,padding:'6px 4px',fontSize:10,color:'#365476',textAlign:'left',cursor:'pointer'},
+  drop:{border:'1px dashed #9dbff0',borderRadius:8,minHeight:112,display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center',gap:7,padding:10,textAlign:'center',background:'#fbfdff'},
+  input:{height:30,border:'1px solid #c7d6e6',borderRadius:6,padding:'0 8px',fontSize:10,outline:'none',minWidth:0,flex:1},
+  list:{display:'grid',gap:6,maxHeight:205,overflowY:'auto'},
+  item:{display:'grid',gridTemplateColumns:'82px minmax(0,1fr) auto',gap:7,alignItems:'center',border:'1px solid #e0e7ef',borderRadius:7,padding:4,background:'#fff'},
+  thumb:{width:82,height:58,objectFit:'cover',display:'block',borderRadius:5,background:'#eef3f8'},
+  danger:{width:28,height:28,border:'1px solid #efb5b5',background:'#fff',color:'#d83b3b',borderRadius:5,cursor:'pointer'},
 };
 
-const LABELS: Record<MediaType, string> = { video: "동영상 저장", youtube: "YouTube 링크", image: "이미지 저장" };
-const FOLDER_LABELS: Record<MediaType, string> = { video: "동영상", youtube: "YouTube", image: "이미지" };
+export default function MediaManager({isAdmin}:{isAdmin:boolean}) {
+  const [dirs,setDirs]=useState<Directory[]>([]); const [items,setItems]=useState<MediaItem[]>([]); const [selected,setSelected]=useState<Record<MediaType,string>>({video:'',youtube:'',image:''});
+  const [error,setError]=useState(''); const [busy,setBusy]=useState(false); const [dragType,setDragType]=useState<MediaType|null>(null); const [dragFolder,setDragFolder]=useState<string|null>(null); const [dragItem,setDragItem]=useState<string|null>(null);
+  const [dialog,setDialog]=useState<{type:MediaType;mode:'create'|'rename';id?:string;name:string;parentId:string|null}|null>(null);
+  const [youtubeUrl,setYoutubeUrl]=useState(''); const [youtubeMeta,setYoutubeMeta]=useState<{title:string;thumbnailUrl:string|null}|null>(null);
+  const [preview,setPreview]=useState<MediaItem|null>(null);
+  const videoInput=useRef<HTMLInputElement>(null), imageInput=useRef<HTMLInputElement>(null);
 
-function youtubeId(url: string | null) {
-  if (!url) return "";
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{6,})/);
-  return match?.[1] || "";
-}
+  const load=useCallback(async()=>{ if(!isAdmin)return; try{const r=await fetch('/api/media',{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'미디어 데이터를 불러오지 못했습니다.');setDirs(d.directories||[]);setItems(d.items||[]);setError('');}catch(e){setError(e instanceof Error?e.message:'미디어 데이터를 불러오지 못했습니다.');}},[isAdmin]);
+  useEffect(()=>{void load()},[load]);
+  useEffect(()=>{ if(!isAdmin)return; const stop=(e:globalThis.DragEvent)=>{if(e.dataTransfer?.types?.includes('Files')||e.dataTransfer?.types?.includes('text/uri-list'))e.preventDefault()}; window.addEventListener('dragover',stop);window.addEventListener('drop',stop);return()=>{window.removeEventListener('dragover',stop);window.removeEventListener('drop',stop)}},[isAdmin]);
 
-function formatSize(size: number | null) {
-  if (!size) return "";
-  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))}KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)}MB`;
-}
+  const byType=(t:MediaType)=>dirs.filter(d=>d.media_type===t).sort((a,b)=>a.sort_order-b.sort_order||a.name.localeCompare(b.name));
+  const children=(t:MediaType,p:string|null)=>byType(t).filter(d=>d.parent_id===p);
+  const visible=(t:MediaType)=>items.filter(i=>i.media_type===t&&(!selected[t]||i.directory_id===selected[t])).sort((a,b)=>a.sort_order-b.sort_order||+new Date(b.created_at)-+new Date(a.created_at));
 
-const styles = {
-  shell: { border: "1px solid #d8e2ee", borderRadius: 9, background: "#fff", padding: 10, color: "#0b2d5c", boxShadow: "0 1px 5px rgba(20,50,90,.04)" } as const,
-  heading: { fontSize: 13, fontWeight: 800, margin: 0, color: "#0b2d5c" } as const,
-  sub: { fontSize: 9, color: "#7890ad", margin: "3px 0 0" } as const,
-  grid: { display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 9, marginTop: 9 } as const,
-  card: { minWidth: 0, border: "1px solid #d5e0ed", borderRadius: 8, background: "#fff", overflow: "hidden" } as const,
-  cardHead: { minHeight: 48, padding: "7px 8px", borderBottom: "1px solid #e3eaf2", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 } as const,
-  body: { display: "grid", gridTemplateColumns: "112px minmax(0,1fr)", minHeight: 235 } as const,
-  folders: { borderRight: "1px solid #e3eaf2", padding: 6, display: "flex", flexDirection: "column", gap: 3, background: "#fbfdff" } as const,
-  folder: { border: 0, background: "transparent", textAlign: "left", padding: "6px 6px", borderRadius: 5, fontSize: 10, color: "#365476", cursor: "pointer", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } as const,
-  selectedFolder: { background: "#edf5ff", color: "#1262d6", fontWeight: 800 } as const,
-  main: { minWidth: 0, padding: 8, display: "flex", flexDirection: "column", gap: 7 } as const,
-  drop: { border: "1px dashed #9dbff0", borderRadius: 7, minHeight: 104, background: "#fbfdff", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 5, padding: 8, textAlign: "center", transition: "all .15s" } as const,
-  dropActive: { border: "2px solid #2877e5", background: "#eef6ff", boxShadow: "0 0 0 3px rgba(37,115,232,.08)" } as const,
-  dropTitle: { fontSize: 10, fontWeight: 800, color: "#174c8d" } as const,
-  input: { height: 29, border: "1px solid #cbd8e7", borderRadius: 5, padding: "0 7px", fontSize: 10, outline: "none", minWidth: 0, flex: 1 } as const,
-  button: { height: 28, border: "1px solid #2877e5", background: "#2877e5", color: "#fff", borderRadius: 5, padding: "0 9px", fontSize: 10, fontWeight: 800, cursor: "pointer" } as const,
-  ghost: { height: 27, border: "1px solid #bfd0e4", background: "#fff", color: "#2e537b", borderRadius: 5, padding: "0 8px", fontSize: 10, fontWeight: 700, cursor: "pointer" } as const,
-  list: { display: "grid", gridTemplateColumns: "1fr", gap: 5, overflowY: "auto", maxHeight: 132 } as const,
-  item: { border: "1px solid #e1e8f1", borderRadius: 6, overflow: "hidden", background: "#fff", display: "grid", gridTemplateColumns: "72px minmax(0,1fr) auto", alignItems: "center" } as const,
-  thumb: { width: 72, height: 52, objectFit: "cover", display: "block", background: "#f3f6fa" } as const,
-  meta: { padding: "5px 6px", minWidth: 0 } as const,
-  itemTitle: { fontSize: 10, fontWeight: 800, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#163d67" } as const,
-  itemInfo: { fontSize: 8, color: "#8293a8", display: "block", marginTop: 2 } as const,
-  danger: { border: "1px solid #efb5b5", background: "#fff", color: "#d83b3b", borderRadius: 5, width: 27, height: 27, cursor: "pointer", marginRight: 5 } as const,
-};
+  async function patchDir(id:string,parentId:string|null,sortOrder:number,name?:string){const r=await fetch('/api/media',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,parentId,sortOrder,name})});const d=await r.json();if(!r.ok)throw new Error(d.error||'디렉토리를 수정하지 못했습니다.');}
+  async function normalizeDirs(t:MediaType,p:string|null,order:string[]){for(let i=0;i<order.length;i++)await patchDir(order[i],p,i)}
+  async function moveDir(t:MediaType,id:string,targetId:string,into:boolean){const all=byType(t);const dragged=all.find(x=>x.id===id),target=all.find(x=>x.id===targetId);if(!dragged||!target||id===targetId)return;let parentId=into?target.id:target.parent_id;const siblings=all.filter(x=>x.parent_id===parentId&&x.id!==id);const idx=into?siblings.length:Math.max(0,siblings.findIndex(x=>x.id===targetId));siblings.splice(idx<0?siblings.length:idx,0,dragged);await patchDir(id,parentId,idx<0?siblings.length-1:idx);await normalizeDirs(t,parentId,siblings.map(x=>x.id));await load();setSelected(v=>({...v,[t]:id}));}
 
-export default function MediaManager({ isAdmin }: { isAdmin: boolean }) {
-  const [directories, setDirectories] = useState<Directory[]>([]);
-  const [items, setItems] = useState<MediaItem[]>([]);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [dragOver, setDragOver] = useState<MediaType | null>(null);
-  const [selectedDir, setSelectedDir] = useState<Record<MediaType, string>>({ video: "", youtube: "", image: "" });
-  const [dirDialog, setDirDialog] = useState<{ mode: "create" | "rename"; type: MediaType; id?: string; name: string } | null>(null);
-  const [menuDir, setMenuDir] = useState<string | null>(null);
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [youtubeTitle, setYoutubeTitle] = useState("");
-  const videoInput = useRef<HTMLInputElement>(null);
-  const imageInput = useRef<HTMLInputElement>(null);
+  async function saveDirectory(){if(!dialog?.name.trim())return;try{setBusy(true);setError('');if(dialog.mode==='create'){const r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'directory',mediaType:dialog.type,name:dialog.name.trim(),parentId:dialog.parentId})});const d=await r.json();if(!r.ok)throw new Error(d.error||'디렉토리 생성에 실패했습니다.');setSelected(v=>({...v,[dialog.type]:d.id}));}else await patchDir(dialog.id!,dialog.parentId,0,dialog.name.trim());setDialog(null);await load()}catch(e){setError(e instanceof Error?e.message:'디렉토리 저장에 실패했습니다.')}finally{setBusy(false)}}
+  async function deleteDir(d:Directory){if(!confirm(`'${d.name}' 디렉토리와 하위 디렉토리의 콘텐츠를 모두 삭제하시겠습니까?`))return;try{setBusy(true);const r=await fetch(`/api/media?id=${encodeURIComponent(d.id)}&directory=1`,{method:'DELETE'});const x=await r.json();if(!r.ok)throw new Error(x.error||'삭제하지 못했습니다.');await load();setSelected(v=>({...v,[d.media_type]:v[d.media_type]===d.id?'':v[d.media_type]}))}catch(e){setError(e instanceof Error?e.message:'디렉토리 삭제에 실패했습니다.')}finally{setBusy(false)}}
 
-  const load = useCallback(async () => {
-    if (!isAdmin) return;
-    try {
-      const response = await fetch("/api/media", { cache: "no-store" });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || `미디어 서버 오류 (${response.status})`);
-      setDirectories(data.directories || []);
-      setItems(data.items || []);
-      setError("");
-    } catch (e) {
-      setDirectories([]);
-      setItems([]);
-      setError(e instanceof Error ? e.message : "미디어 데이터를 불러오지 못했습니다.");
-    }
-  }, [isAdmin]);
+  async function uploadFile(file:File,t:'video'|'image'){const expected=t==='video'?'video/':'image/';if(!file.type.startsWith(expected)){setError(t==='video'?'동영상 파일만 넣어주세요.':'이미지 파일만 넣어주세요.');return}try{setBusy(true);setError('');const result=await upload(`media/${t}/${Date.now()}-${file.name.replace(/[^\w가-힣.()-]/g,'_')}`,file,{access:'public',handleUploadUrl:'/api/media/upload',multipart:true,onUploadProgress:p=>setError(`${labels[t]} 업로드 중 ${Math.round(p.percentage)}%`)});const r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'item',mediaType:t,title:fileTitle(file.name),directoryId:selected[t]||null,fileUrl:result.url,blobPathname:result.pathname,mimeType:file.type,sizeBytes:file.size})});const d=await r.json();if(!r.ok)throw new Error(d.error||'파일 정보를 저장하지 못했습니다.');await load();setError('')}catch(e){setError(e instanceof Error?e.message:'업로드에 실패했습니다.')}finally{setBusy(false)}}
+  async function files(files:FileList|File[],t:'video'|'image'){for(const f of Array.from(files))await uploadFile(f,t)}
+  async function fileChange(e:ChangeEvent<HTMLInputElement>,t:'video'|'image'){if(e.target.files?.length)await files(e.target.files,t);e.target.value=''}
 
-  useEffect(() => { load(); }, [load]);
+  async function previewYoutube(value:string){setYoutubeUrl(value);setYoutubeMeta(null);if(!ytId(value))return;try{const r=await fetch(`/api/media?youtube=1&url=${encodeURIComponent(value)}`);const d=await r.json();if(r.ok)setYoutubeMeta({title:d.title,thumbnailUrl:d.thumbnailUrl});}catch{}}
+  async function addYoutube(){if(!ytId(youtubeUrl)){setError('유효한 YouTube URL을 넣어주세요.');return}try{setBusy(true);setError('');const r=await fetch('/api/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'item',mediaType:'youtube',title:youtubeMeta?.title||'YouTube 영상',youtubeUrl:youtubeUrl.trim(),thumbnailUrl:youtubeMeta?.thumbnailUrl||null,directoryId:selected.youtube||null})});const d=await r.json();if(!r.ok)throw new Error(d.error||'YouTube 링크 저장에 실패했습니다.');setYoutubeUrl('');setYoutubeMeta(null);await load()}catch(e){setError(e instanceof Error?e.message:'YouTube 링크 저장에 실패했습니다.')}finally{setBusy(false)}}
 
-  useEffect(() => {
-    if (!isAdmin) return;
-    const preventBrowserFileOpen = (event: globalThis.DragEvent) => {
-      if (event.dataTransfer?.types?.includes("Files") || event.dataTransfer?.types?.includes("text/uri-list")) event.preventDefault();
-    };
-    window.addEventListener("dragover", preventBrowserFileOpen);
-    window.addEventListener("drop", preventBrowserFileOpen);
-    return () => {
-      window.removeEventListener("dragover", preventBrowserFileOpen);
-      window.removeEventListener("drop", preventBrowserFileOpen);
-    };
-  }, [isAdmin]);
+  async function removeItem(i:MediaItem){if(!confirm(`'${i.title}'을(를) 삭제하시겠습니까?`))return;try{setBusy(true);const r=await fetch(`/api/media?id=${encodeURIComponent(i.id)}`,{method:'DELETE'});const d=await r.json();if(!r.ok)throw new Error(d.error||'삭제하지 못했습니다.');await load()}catch(e){setError(e instanceof Error?e.message:'삭제하지 못했습니다.')}finally{setBusy(false)}}
+  async function moveItem(t:MediaType,id:string,targetId:string){const list=visible(t),from=list.findIndex(x=>x.id===id),to=list.findIndex(x=>x.id===targetId);if(from<0||to<0||from===to)return;const next=[...list];const [m]=next.splice(from,1);next.splice(to,0,m);for(let i=0;i<next.length;i++){await fetch('/api/media',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({entity:'item',id:next[i].id,directoryId:next[i].directory_id,sortOrder:i})})}await load()}
 
-  if (!isAdmin) {
-    return <section style={styles.shell}><div style={{ textAlign: "center", padding: "14px 8px" }}><div style={{ fontSize: 20, marginBottom: 3 }}>🔒</div><h3 style={{ ...styles.heading, fontSize: 12 }}>동영상 & 이미지</h3><p style={{ ...styles.sub, fontSize: 9 }}>로그인 후 동영상 저장, YouTube 링크, 이미지 저장 기능을 이용할 수 있습니다.</p></div></section>;
-  }
+  function folderTree(t:MediaType){const render=(parent:string|null,depth=0):React.ReactNode=>children(t,parent).map(d=><div key={d.id} style={{marginLeft:depth*8}}><div draggable onDragStart={()=>setDragFolder(d.id)} onDragEnd={()=>setDragFolder(null)} onDragOver={e=>{e.preventDefault();e.stopPropagation()}} onDrop={e=>{e.preventDefault();e.stopPropagation();if(dragFolder&&dragFolder!==d.id)void moveDir(t,dragFolder,d.id,e.clientY>e.currentTarget.getBoundingClientRect().top+e.currentTarget.getBoundingClientRect().height/2)}} style={{position:'relative',display:'flex',alignItems:'center',background:selected[t]===d.id?'#edf5ff':'transparent',borderRadius:5}}><button type="button" style={{...s.folder,fontWeight:selected[t]===d.id?800:600,color:selected[t]===d.id?colors[t]:'#365476',paddingLeft:4}} onClick={()=>setSelected(v=>({...v,[t]:d.id}))}>⋮⋮ 📁 {d.name}</button><button type="button" title="하위 디렉토리" style={{border:0,background:'transparent',color:colors[t],cursor:'pointer',fontSize:12}} onClick={()=>setDialog({mode:'create',type:t,parentId:d.id,name:''})}>＋</button><button type="button" title="이름 변경" style={{border:0,background:'transparent',color:'#7489a1',cursor:'pointer',fontSize:14}} onClick={()=>setDialog({mode:'rename',type:t,id:d.id,parentId:d.parent_id,name:d.name})}>⋯</button></div>{render(d.id,depth+1)}</div>);return render(null)}
 
-  const dirs = (type: MediaType) => directories.filter((d) => d.media_type === type);
-  const visibleItems = (type: MediaType) => items.filter((item) => item.media_type === type && (!selectedDir[type] || item.directory_id === selectedDir[type]));
+  function card(t:MediaType){const list=visible(t);const drop=(e:DragEvent<HTMLDivElement>)=>{e.preventDefault();setDragType(null);if(t==='youtube'){const raw=(e.dataTransfer.getData('text/uri-list')||e.dataTransfer.getData('text/plain')||'').split('\n')[0].trim();if(raw)void previewYoutube(raw)}else if(e.dataTransfer.files?.length)void files(e.dataTransfer.files,t as 'video'|'image')};return <section style={s.card}><div style={s.cardHead}><div><strong style={{fontSize:13,color:colors[t]}}>{labels[t]}</strong><div style={s.sub}>{t==='video'?'일반 동영상 파일을 저장합니다.':t==='youtube'?'YouTube URL을 저장하고 사이트 안에서 재생합니다.':'이미지 파일을 저장하고 미리봅니다.'}</div></div><button type="button" style={s.ghost} disabled={busy} onClick={()=>setDialog({mode:'create',type:t,parentId:selected[t]||null,name:''})}>＋ 새 디렉토리</button></div><div style={s.body}><aside style={s.folders}><button type="button" style={{...s.folder,background:selected[t]===''?'#edf5ff':'transparent',color:selected[t]===''?colors[t]:'#365476',fontWeight:800}} onClick={()=>setSelected(v=>({...v,[t]:''}))}>▣ 전체 {labels[t].replace(' 저장','').replace(' 링크','')}</button>{folderTree(t)}</aside><main style={s.main}>{t==='youtube'?<div onDragEnter={e=>{e.preventDefault();setDragType(t)}} onDragOver={e=>{e.preventDefault();setDragType(t)}} onDragLeave={()=>setDragType(null)} onDrop={drop} style={{...s.drop,borderColor:dragType===t?colors[t]:'#d0dbea',background:dragType===t?'#fff5f7':'#fbfdff'}}><div style={{fontSize:22,color:colors[t]}}>▶</div><strong style={{fontSize:11}}>YouTube URL을 드래그하거나 입력하세요</strong><div style={{display:'flex',width:'100%',gap:5}}><input value={youtubeUrl} onChange={e=>void previewYoutube(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." style={s.input}/><button type="button" style={{...s.button,background:colors[t],borderColor:colors[t]}} disabled={busy} onClick={()=>void addYoutube()}>추가</button></div>{youtubeMeta&&<div style={{display:'flex',gap:8,alignItems:'center',width:'100%'}}><img src={youtubeMeta.thumbnailUrl||''} alt="" style={{width:72,height:42,objectFit:'cover',borderRadius:4}}/><strong style={{fontSize:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{youtubeMeta.title}</strong></div>}</div>:<div onDragEnter={e=>{e.preventDefault();setDragType(t)}} onDragOver={e=>{e.preventDefault();setDragType(t)}} onDragLeave={()=>setDragType(null)} onDrop={drop} style={{...s.drop,borderColor:dragType===t?colors[t]:'#d0dbea',background:dragType===t?'#f5fbf7':'#fbfdff'}}><div style={{fontSize:25,color:colors[t]}}>⇧</div><strong style={{fontSize:11}}>{t==='video'?'동영상 파일을 드래그 앤 드롭하세요':'이미지 파일을 드래그 앤 드롭하세요'}</strong><button type="button" style={{...s.button,background:colors[t],borderColor:colors[t]}} disabled={busy} onClick={()=>t==='video'?videoInput.current?.click():imageInput.current?.click()}>파일 선택</button><span style={s.sub}>{t==='video'?'MP4, MOV, AVI, WEBM · 최대 500MB':'JPG, PNG, GIF, WEBP'}</span></div>}{t==='video'&&<input ref={videoInput} hidden multiple type="file" accept="video/*" onChange={e=>void fileChange(e,'video')}/>} {t==='image'&&<input ref={imageInput} hidden multiple type="file" accept="image/*" onChange={e=>void fileChange(e,'image')}/>}<div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><strong style={{fontSize:11}}>{selected[t]?byType(t).find(d=>d.id===selected[t])?.name:`전체 ${labels[t].replace(' 저장','').replace(' 링크','')}`}</strong><span style={s.sub}>{list.length}개</span></div>{list.length===0?<div style={{border:'1px dashed #d5e0ed',padding:20,textAlign:'center',borderRadius:7,color:'#9aaabd',fontSize:10}}>저장된 콘텐츠가 없습니다.</div>:<div style={s.list}>{list.map(i=>{const id=ytId(i.youtube_url);return <div key={i.id} draggable onDragStart={()=>setDragItem(i.id)} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();if(dragItem)void moveItem(t,dragItem,i.id);setDragItem(null)}} style={s.item}>{t==='youtube'?<button type="button" onClick={()=>setPreview(i)} style={{border:0,padding:0,background:'transparent',cursor:'pointer'}}><img src={i.thumbnail_url||`https://i.ytimg.com/vi/${id}/mqdefault.jpg`} alt="YouTube 썸네일" style={s.thumb}/></button>:t==='image'?<button type="button" onClick={()=>setPreview(i)} style={{border:0,padding:0,background:'transparent',cursor:'pointer'}}><img src={i.file_url||''} alt={i.title} style={s.thumb}/></button>:<button type="button" onClick={()=>setPreview(i)} style={{border:0,padding:0,background:'transparent',cursor:'pointer'}}><video src={i.file_url||undefined} muted preload="metadata" style={s.thumb}/></button>}<div style={{minWidth:0}}><strong style={{display:'block',fontSize:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'#163d67'}}>{i.title}</strong><span style={{display:'block',fontSize:8,color:'#8293a8',marginTop:3}}>{size(i.size_bytes)} {i.created_at&&`· ${new Date(i.created_at).toLocaleDateString('ko-KR')}`}</span>{t==='youtube'&&<span style={{fontSize:8,color:'#d44'}}>YouTube</span>}</div><div style={{display:'flex',gap:3}}>{(t==='video'||t==='image')&&i.file_url&&<a href={i.file_url} download target="_blank" rel="noreferrer" style={{...s.ghost,textDecoration:'none',display:'grid',placeItems:'center',width:28,padding:0}} title="다운로드">↓</a>}<button type="button" style={s.danger} disabled={busy} onClick={()=>void removeItem(i)} title="삭제">×</button></div></div>})}</div>}</main></div></section>}
 
-  async function createOrRenameDirectory() {
-    if (!dirDialog || !dirDialog.name.trim()) return;
-    try {
-      setBusy(true); setError("");
-      const method = dirDialog.mode === "create" ? "POST" : "PATCH";
-      const body = dirDialog.mode === "create"
-        ? { action: "directory", mediaType: dirDialog.type, name: dirDialog.name.trim() }
-        : { id: dirDialog.id, name: dirDialog.name.trim() };
-      const response = await fetch("/api/media", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "디렉토리 저장에 실패했습니다.");
-      if (dirDialog.mode === "create") {
-        const directory = { id: data.id, media_type: dirDialog.type, name: data.name } as Directory;
-        setDirectories((current) => [...current, directory]);
-        setSelectedDir((current) => ({ ...current, [dirDialog.type]: directory.id }));
-      } else {
-        setDirectories((current) => current.map((d) => d.id === dirDialog.id ? { ...d, name: dirDialog.name.trim() } : d));
-      }
-      setDirDialog(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "디렉토리를 저장하지 못했습니다.");
-    } finally { setBusy(false); }
-  }
-
-  async function deleteDirectory(directory: Directory) {
-    if (!window.confirm(`'${directory.name}' 디렉토리를 삭제하시겠습니까?\n디렉토리 안의 저장된 파일과 링크도 함께 삭제됩니다.`)) return;
-    try {
-      setBusy(true); setError("");
-      const response = await fetch(`/api/media?id=${encodeURIComponent(directory.id)}&directory=1`, { method: "DELETE" });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "디렉토리를 삭제하지 못했습니다.");
-      setDirectories((current) => current.filter((d) => d.id !== directory.id));
-      setItems((current) => current.filter((item) => item.directory_id !== directory.id));
-      setSelectedDir((current) => ({ ...current, [directory.media_type]: current[directory.media_type] === directory.id ? "" : current[directory.media_type] }));
-      setMenuDir(null);
-    } catch (e) { setError(e instanceof Error ? e.message : "디렉토리를 삭제하지 못했습니다."); }
-    finally { setBusy(false); }
-  }
-
-  async function saveItem(payload: Record<string, unknown>) {
-    const response = await fetch("/api/media", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "item", ...payload }) });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || `콘텐츠 저장 오류 (${response.status})`);
-  }
-
-  async function uploadFile(file: File, type: "video" | "image") {
-    const expected = type === "video" ? "video/" : "image/";
-    if (!file.type.startsWith(expected)) { setError(type === "video" ? "동영상 파일만 넣어주세요." : "이미지 파일만 넣어주세요."); return; }
-    const defaultTitle = file.name.replace(/\.[^.]+$/, "");
-    const title = window.prompt("저장할 제목을 입력하세요", defaultTitle)?.trim();
-    if (!title) return;
-    try {
-      setBusy(true); setError("");
-      const safeName = file.name.replace(/[^\w가-힣.()-]/g, "_");
-      const result = await upload(`media/${type}/${Date.now()}-${safeName}`, file, {
-        access: "public",
-        handleUploadUrl: "/api/media/upload",
-        multipart: true,
-        onUploadProgress: (progress) => setError(`${LABELS[type]} 업로드 중 ${Math.round(progress.percentage)}%`),
-      });
-      await saveItem({ mediaType: type, title, directoryId: selectedDir[type] || null, fileUrl: result.url, blobPathname: result.pathname, mimeType: file.type, sizeBytes: file.size });
-      await load();
-      setError("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "파일 업로드에 실패했습니다.");
-    } finally { setBusy(false); }
-  }
-
-  async function handleFiles(files: FileList | File[], type: "video" | "image") {
-    for (const file of Array.from(files)) await uploadFile(file, type);
-  }
-
-  async function handleFileChange(event: ChangeEvent<HTMLInputElement>, type: "video" | "image") {
-    if (event.target.files?.length) await handleFiles(event.target.files, type);
-    event.target.value = "";
-  }
-
-  async function handleDrop(event: DragEvent<HTMLDivElement>, type: MediaType) {
-    event.preventDefault(); event.stopPropagation(); setDragOver(null);
-    if (type === "youtube") {
-      const raw = (event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain") || "").trim();
-      if (raw) setYoutubeUrl(raw.split("\n")[0]);
-      return;
-    }
-    if (event.dataTransfer.files?.length) await handleFiles(event.dataTransfer.files, type);
-  }
-
-  async function addYoutube() {
-    if (!youtubeId(youtubeUrl)) { setError("유효한 YouTube URL을 넣어주세요."); return; }
-    if (!youtubeTitle.trim()) { setError("YouTube 영상 제목을 입력해주세요."); return; }
-    try {
-      setBusy(true); setError("");
-      await saveItem({ mediaType: "youtube", title: youtubeTitle.trim(), directoryId: selectedDir.youtube || null, youtubeUrl: youtubeUrl.trim() });
-      setYoutubeUrl(""); setYoutubeTitle(""); await load();
-    } catch (e) { setError(e instanceof Error ? e.message : "YouTube 링크 저장에 실패했습니다."); }
-    finally { setBusy(false); }
-  }
-
-  async function removeItem(item: MediaItem) {
-    if (!window.confirm(`'${item.title}'을(를) 삭제하시겠습니까?`)) return;
-    try {
-      setBusy(true); setError("");
-      const response = await fetch(`/api/media?id=${encodeURIComponent(item.id)}`, { method: "DELETE" });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "삭제하지 못했습니다.");
-      setItems((current) => current.filter((row) => row.id !== item.id));
-    } catch (e) { setError(e instanceof Error ? e.message : "삭제하지 못했습니다."); }
-    finally { setBusy(false); }
-  }
-
-  function dragHandlers(type: MediaType) {
-    return {
-      onDragEnter: (event: DragEvent<HTMLDivElement>) => { event.preventDefault(); event.stopPropagation(); setDragOver(type); },
-      onDragOver: (event: DragEvent<HTMLDivElement>) => { event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = type === "youtube" ? "link" : "copy"; setDragOver(type); },
-      onDragLeave: (event: DragEvent<HTMLDivElement>) => { event.preventDefault(); event.stopPropagation(); setDragOver(null); },
-      onDrop: (event: DragEvent<HTMLDivElement>) => { void handleDrop(event, type); },
-    };
-  }
-
-  function folderMenu(type: MediaType, directory: Directory) {
-    return menuDir === directory.id ? <div style={{ position: "absolute", right: 4, top: 29, zIndex: 5, width: 100, background: "#fff", border: "1px solid #d5e0ed", borderRadius: 6, boxShadow: "0 5px 18px rgba(20,50,90,.12)", padding: 3 }}>
-      <button type="button" style={{ ...styles.folder, width: "100%" }} onClick={() => { setDirDialog({ mode: "rename", type, id: directory.id, name: directory.name }); setMenuDir(null); }}>✎ 이름 변경</button>
-      <button type="button" style={{ ...styles.folder, width: "100%", color: "#d83b3b" }} onClick={() => void deleteDirectory(directory)}>⌫ 삭제</button>
-    </div> : null;
-  }
-
-  function card(type: MediaType) {
-    const typeDirs = dirs(type);
-    const list = visibleItems(type);
-    const selected = selectedDir[type];
-    return <section style={styles.card} key={type}>
-      <div style={styles.cardHead}>
-        <div><h3 style={styles.heading}>{LABELS[type]}</h3><p style={styles.sub}>{type === "video" ? "일반 동영상 파일을 저장합니다." : type === "youtube" ? "YouTube URL을 저장하고 임베드로 재생합니다." : "이미지 파일을 저장합니다."}</p></div>
-        <button type="button" style={styles.ghost} disabled={busy} onClick={() => setDirDialog({ mode: "create", type, name: "" })}>＋ 새 디렉토리</button>
-      </div>
-      <div style={styles.body}>
-        <aside style={styles.folders}>
-          <button type="button" style={{ ...styles.folder, ...(selected === "" ? styles.selectedFolder : {}) }} onClick={() => setSelectedDir((current) => ({ ...current, [type]: "" }))}>▣ 전체 {FOLDER_LABELS[type]}</button>
-          {typeDirs.map((directory) => <div key={directory.id} style={{ position: "relative" }}>
-            <button type="button" style={{ ...styles.folder, width: "100%", paddingRight: 24, ...(selected === directory.id ? styles.selectedFolder : {}) }} onClick={() => setSelectedDir((current) => ({ ...current, [type]: directory.id }))}>📁 {directory.name}</button>
-            <button type="button" aria-label="디렉토리 메뉴" style={{ position: "absolute", right: 2, top: 2, border: 0, background: "transparent", color: "#7189a5", cursor: "pointer", width: 22, height: 24 }} onClick={() => setMenuDir((current) => current === directory.id ? null : directory.id)}>⋮</button>
-            {folderMenu(type, directory)}
-          </div>)}
-          <button type="button" style={{ ...styles.folder, color: "#2877e5", marginTop: "auto" }} onClick={() => setDirDialog({ mode: "create", type, name: "" })}>＋ 새 디렉토리</button>
-        </aside>
-        <div style={styles.main}>
-          {type === "youtube" ? <div {...dragHandlers(type)} style={{ ...styles.drop, ...(dragOver === type ? styles.dropActive : {}) }}>
-            <div style={{ fontSize: 18, color: "#e62143" }}>↗</div>
-            <div style={styles.dropTitle}>YouTube 링크를 여기에 드래그하거나 입력하세요</div>
-            <div style={{ display: "flex", width: "100%", gap: 4 }}>
-              <input value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." style={styles.input} />
-              <input value={youtubeTitle} onChange={(e) => setYoutubeTitle(e.target.value)} placeholder="영상 제목" style={styles.input} />
-              <button type="button" style={styles.button} disabled={busy} onClick={() => void addYoutube()}>추가</button>
-            </div>
-            <span style={styles.sub}>YouTube는 파일 저장이 아니라 URL/임베드 방식으로 관리됩니다.</span>
-          </div> : <div {...dragHandlers(type)} style={{ ...styles.drop, ...(dragOver === type ? styles.dropActive : {}) }}>
-            <div style={{ fontSize: 22, color: "#2877e5" }}>⇧</div>
-            <div style={styles.dropTitle}>{type === "video" ? "동영상 파일을 드래그 앤 드롭하세요" : "이미지 파일을 드래그 앤 드롭하세요"}</div>
-            <button type="button" style={styles.button} disabled={busy} onClick={() => (type === "video" ? videoInput.current?.click() : imageInput.current?.click())}>파일 선택</button>
-            <span style={styles.sub}>{type === "video" ? "MP4, MOV, AVI, WEBM 등 · 최대 500MB" : "JPG, PNG, GIF, WEBP 등"}</span>
-          </div>}
-          {type === "video" && <input ref={videoInput} type="file" accept="video/*" multiple hidden onChange={(e) => void handleFileChange(e, "video")} />}
-          {type === "image" && <input ref={imageInput} type="file" accept="image/*" multiple hidden onChange={(e) => void handleFileChange(e, "image")} />}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><strong style={{ fontSize: 10 }}>{selected ? typeDirs.find((d) => d.id === selected)?.name : `전체 ${FOLDER_LABELS[type]}`}</strong><span style={styles.sub}>총 {list.length}개</span></div>
-          {list.length === 0 ? <div style={{ border: "1px dashed #d5e0ed", borderRadius: 6, padding: "15px 8px", textAlign: "center", color: "#9aaabd", fontSize: 9 }}>저장된 콘텐츠가 없습니다.</div> : <div style={styles.list}>{list.map((item) => {
-            const id = youtubeId(item.youtube_url);
-            return <div key={item.id} style={styles.item}>
-              {type === "youtube" ? <div style={{ width: 72, height: 52, background: "#111", overflow: "hidden" }}>{id ? <img src={`https://i.ytimg.com/vi/${id}/mqdefault.jpg`} alt="YouTube 썸네일" style={styles.thumb} /> : null}</div> : type === "image" ? <img src={item.file_url || ""} alt={item.title} style={styles.thumb} /> : <video src={item.file_url || undefined} style={styles.thumb} muted preload="metadata" />}
-              <div style={styles.meta}><span style={styles.itemTitle}>{item.title}</span><span style={styles.itemInfo}>{formatSize(item.size_bytes)} {item.created_at ? `· ${new Date(item.created_at).toLocaleDateString("ko-KR")}` : ""}</span>{type === "youtube" && item.youtube_url && <a href={item.youtube_url} target="_blank" rel="noreferrer" style={{ fontSize: 8, color: "#2877e5" }}>YouTube 열기 ↗</a>}</div>
-              <button type="button" style={styles.danger} disabled={busy} onClick={() => void removeItem(item)} title="삭제">⌫</button>
-            </div>;
-          })}</div>}
-        </div>
-      </div>
-    </section>;
-  }
-
-  return <section style={styles.shell}>
-    <div><h2 style={{ ...styles.heading, fontSize: 14 }}>동영상 & 이미지</h2><p style={{ ...styles.sub, fontSize: 9 }}>로그인한 사용자만 디렉토리와 동영상·YouTube·이미지를 저장하고 관리할 수 있습니다.</p></div>
-    {error && <div style={{ marginTop: 7, border: "1px solid #f2c3c3", background: "#fff7f7", color: "#c33", borderRadius: 6, padding: "6px 8px", fontSize: 9 }}>{error}</div>}
-    <div style={styles.grid}>{(["video", "youtube", "image"] as MediaType[]).map(card)}</div>
-    {dirDialog && <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(9,25,45,.32)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div style={{ width: 330, background: "#fff", borderRadius: 9, boxShadow: "0 15px 45px rgba(0,0,0,.2)", padding: 16 }}>
-        <h3 style={{ margin: 0, fontSize: 14, color: "#0b2d5c" }}>{dirDialog.mode === "create" ? "새 디렉토리 만들기" : "디렉토리 이름 변경"}</h3>
-        <p style={{ fontSize: 9, color: "#7890ad", margin: "5px 0 10px" }}>{LABELS[dirDialog.type]}</p>
-        <input autoFocus value={dirDialog.name} onChange={(e) => setDirDialog({ ...dirDialog, name: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") void createOrRenameDirectory(); }} placeholder="디렉토리 제목" style={{ ...styles.input, width: "100%", boxSizing: "border-box" }} />
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginTop: 12 }}><button type="button" style={styles.ghost} onClick={() => setDirDialog(null)}>취소</button><button type="button" style={styles.button} disabled={busy || !dirDialog.name.trim()} onClick={() => void createOrRenameDirectory()}>{dirDialog.mode === "create" ? "만들기" : "저장"}</button></div>
-      </div>
-    </div>}
+  if(!isAdmin)return <section style={s.shell}><div style={{textAlign:'center',padding:'15px 8px'}}><div style={{fontSize:20}}>🔒</div><strong style={{fontSize:12}}>동영상 & 이미지</strong><p style={s.sub}>로그인 후 동영상 저장, YouTube 링크, 이미지 저장 기능을 이용할 수 있습니다.</p></div></section>;
+  return <section style={s.shell}><div style={s.head}><div><h2 style={s.h2}>동영상 & 이미지</h2><p style={s.sub}>동영상, YouTube 링크, 이미지를 각각 독립적으로 관리하세요.</p></div><button type="button" style={s.ghost} onClick={()=>void load()}>↻ 새로고침</button></div>{error&&<div style={{marginTop:8,padding:'7px 9px',border:'1px solid #efc0c0',background:'#fff7f7',color:'#c33',borderRadius:6,fontSize:10}}>{error}</div>}<div style={s.grid}>{(['video','youtube','image'] as MediaType[]).map(card)}</div>
+    {dialog&&<div style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(5,20,40,.35)',display:'grid',placeItems:'center',padding:20}}><div style={{width:360,maxWidth:'95vw',background:'#fff',borderRadius:10,padding:16,boxShadow:'0 20px 60px rgba(0,0,0,.25)'}}><strong style={{fontSize:14}}>{dialog.mode==='create'?'새 디렉토리 만들기':'디렉토리 이름 변경'}</strong><p style={s.sub}>{labels[dialog.type]}</p><input autoFocus value={dialog.name} onChange={e=>setDialog({...dialog,name:e.target.value})} onKeyDown={e=>{if(e.key==='Enter')void saveDirectory()}} placeholder="디렉토리 이름" style={{...s.input,width:'100%',boxSizing:'border-box',marginTop:8}}/><div style={{display:'flex',justifyContent:'flex-end',gap:6,marginTop:12}}><button type="button" style={s.ghost} onClick={()=>setDialog(null)}>취소</button><button type="button" style={s.button} disabled={busy||!dialog.name.trim()} onClick={()=>void saveDirectory()}>{dialog.mode==='create'?'만들기':'저장'}</button></div></div></div>}
+    {preview&&<div style={{position:'fixed',inset:0,zIndex:1100,background:'rgba(4,14,28,.72)',display:'grid',placeItems:'center',padding:24}} onClick={()=>setPreview(null)}><div style={{width:'min(900px,95vw)',background:'#fff',borderRadius:10,padding:12}} onClick={e=>e.stopPropagation()}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><strong style={{fontSize:14}}>{preview.title}</strong><button type="button" style={s.ghost} onClick={()=>setPreview(null)}>닫기</button></div>{preview.media_type==='youtube'?<div style={{position:'relative',paddingTop:'56.25%'}}><iframe src={`https://www.youtube.com/embed/${ytId(preview.youtube_url)}`} title={preview.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen style={{position:'absolute',inset:0,width:'100%',height:'100%',border:0,borderRadius:7}}/> </div>:preview.media_type==='image'?<img src={preview.file_url||''} alt={preview.title} style={{display:'block',maxWidth:'100%',maxHeight:'75vh',margin:'0 auto',objectFit:'contain'}}/>:<video src={preview.file_url||undefined} controls autoPlay style={{width:'100%',maxHeight:'75vh',background:'#000',borderRadius:7}}/>}</div></div>}
   </section>;
 }
