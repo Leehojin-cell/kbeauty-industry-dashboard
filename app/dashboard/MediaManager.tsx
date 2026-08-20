@@ -1,14 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent, type ChangeEvent } from "react";
 import { upload } from "@vercel/blob/client";
 
 type MediaType = "video" | "youtube" | "image";
 type Directory = { id: string; media_type: MediaType; name: string };
-type MediaItem = { id: string; directory_id: string | null; media_type: MediaType; title: string; file_url: string | null; youtube_url: string | null; mime_type: string | null; size_bytes: number | null; created_at: string };
+type MediaItem = {
+  id: string;
+  directory_id: string | null;
+  media_type: MediaType;
+  title: string;
+  file_url: string | null;
+  blob_pathname?: string | null;
+  youtube_url: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  created_at: string;
+};
 
 const LABELS: Record<MediaType, string> = { video: "동영상 저장", youtube: "YouTube 링크", image: "이미지 저장" };
-const ACCEPT: Record<MediaType, string> = { video: "video/*", youtube: "", image: "image/*" };
+const FOLDER_LABELS: Record<MediaType, string> = { video: "동영상", youtube: "YouTube", image: "이미지" };
 
 function youtubeId(url: string | null) {
   if (!url) return "";
@@ -23,29 +34,30 @@ function formatSize(size: number | null) {
 }
 
 const styles = {
-  shell: { border: "1px solid #d9e2ef", borderRadius: 8, background: "#fff", padding: 10, color: "#0b2d5c" } as const,
-  heading: { fontSize: 13, fontWeight: 800, margin: "0 0 2px" } as const,
-  sub: { fontSize: 9, color: "#7890ad", margin: 0 } as const,
-  grid: { display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 8, marginTop: 8 } as const,
-  card: { minWidth: 0, border: "1px solid #d7e2ef", borderRadius: 7, background: "#fff", overflow: "hidden" } as const,
-  cardHead: { minHeight: 47, padding: "7px 8px", borderBottom: "1px solid #e2e9f2", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 5 } as const,
-  body: { display: "grid", gridTemplateColumns: "112px minmax(0,1fr)", minHeight: 205 } as const,
-  folders: { borderRight: "1px solid #e2e9f2", padding: 6, display: "flex", flexDirection: "column", gap: 3 } as const,
-  folder: { border: 0, background: "transparent", textAlign: "left", padding: "5px 6px", borderRadius: 4, fontSize: 10, color: "#365476", cursor: "pointer", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } as const,
-  selectedFolder: { background: "#edf5ff", color: "#1262d6", fontWeight: 700 } as const,
+  shell: { border: "1px solid #d8e2ee", borderRadius: 9, background: "#fff", padding: 10, color: "#0b2d5c", boxShadow: "0 1px 5px rgba(20,50,90,.04)" } as const,
+  heading: { fontSize: 13, fontWeight: 800, margin: 0, color: "#0b2d5c" } as const,
+  sub: { fontSize: 9, color: "#7890ad", margin: "3px 0 0" } as const,
+  grid: { display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 9, marginTop: 9 } as const,
+  card: { minWidth: 0, border: "1px solid #d5e0ed", borderRadius: 8, background: "#fff", overflow: "hidden" } as const,
+  cardHead: { minHeight: 48, padding: "7px 8px", borderBottom: "1px solid #e3eaf2", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 } as const,
+  body: { display: "grid", gridTemplateColumns: "112px minmax(0,1fr)", minHeight: 235 } as const,
+  folders: { borderRight: "1px solid #e3eaf2", padding: 6, display: "flex", flexDirection: "column", gap: 3, background: "#fbfdff" } as const,
+  folder: { border: 0, background: "transparent", textAlign: "left", padding: "6px 6px", borderRadius: 5, fontSize: 10, color: "#365476", cursor: "pointer", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } as const,
+  selectedFolder: { background: "#edf5ff", color: "#1262d6", fontWeight: 800 } as const,
   main: { minWidth: 0, padding: 8, display: "flex", flexDirection: "column", gap: 7 } as const,
-  drop: { border: "1px dashed #9dbff0", borderRadius: 6, minHeight: 108, background: "#fbfdff", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 5, padding: 9, textAlign: "center" } as const,
-  dropActive: { border: "2px solid #2573e8", background: "#eef6ff", boxShadow: "0 0 0 3px rgba(37,115,232,.08)" } as const,
-  dropTitle: { fontSize: 10, fontWeight: 700, color: "#174c8d" } as const,
-  input: { height: 28, border: "1px solid #cbd8e7", borderRadius: 4, padding: "0 7px", fontSize: 10, outline: "none", minWidth: 0 } as const,
-  button: { height: 27, border: "1px solid #2877e5", background: "#2877e5", color: "#fff", borderRadius: 4, padding: "0 9px", fontSize: 10, fontWeight: 700, cursor: "pointer" } as const,
-  ghost: { height: 26, border: "1px solid #c9d7e8", background: "#fff", color: "#2e537b", borderRadius: 4, padding: "0 8px", fontSize: 10, cursor: "pointer" } as const,
-  list: { display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 5 } as const,
-  item: { border: "1px solid #e1e8f1", borderRadius: 5, overflow: "hidden", background: "#fff" } as const,
-  thumb: { width: "100%", height: 68, objectFit: "cover", display: "block", background: "#f3f6fa" } as const,
-  meta: { padding: "5px 6px" } as const,
-  itemTitle: { fontSize: 10, fontWeight: 700, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } as const,
+  drop: { border: "1px dashed #9dbff0", borderRadius: 7, minHeight: 104, background: "#fbfdff", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 5, padding: 8, textAlign: "center", transition: "all .15s" } as const,
+  dropActive: { border: "2px solid #2877e5", background: "#eef6ff", boxShadow: "0 0 0 3px rgba(37,115,232,.08)" } as const,
+  dropTitle: { fontSize: 10, fontWeight: 800, color: "#174c8d" } as const,
+  input: { height: 29, border: "1px solid #cbd8e7", borderRadius: 5, padding: "0 7px", fontSize: 10, outline: "none", minWidth: 0, flex: 1 } as const,
+  button: { height: 28, border: "1px solid #2877e5", background: "#2877e5", color: "#fff", borderRadius: 5, padding: "0 9px", fontSize: 10, fontWeight: 800, cursor: "pointer" } as const,
+  ghost: { height: 27, border: "1px solid #bfd0e4", background: "#fff", color: "#2e537b", borderRadius: 5, padding: "0 8px", fontSize: 10, fontWeight: 700, cursor: "pointer" } as const,
+  list: { display: "grid", gridTemplateColumns: "1fr", gap: 5, overflowY: "auto", maxHeight: 132 } as const,
+  item: { border: "1px solid #e1e8f1", borderRadius: 6, overflow: "hidden", background: "#fff", display: "grid", gridTemplateColumns: "72px minmax(0,1fr) auto", alignItems: "center" } as const,
+  thumb: { width: 72, height: 52, objectFit: "cover", display: "block", background: "#f3f6fa" } as const,
+  meta: { padding: "5px 6px", minWidth: 0 } as const,
+  itemTitle: { fontSize: 10, fontWeight: 800, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#163d67" } as const,
   itemInfo: { fontSize: 8, color: "#8293a8", display: "block", marginTop: 2 } as const,
+  danger: { border: "1px solid #efb5b5", background: "#fff", color: "#d83b3b", borderRadius: 5, width: 27, height: 27, cursor: "pointer", marginRight: 5 } as const,
 };
 
 export default function MediaManager({ isAdmin }: { isAdmin: boolean }) {
@@ -54,9 +66,9 @@ export default function MediaManager({ isAdmin }: { isAdmin: boolean }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState<MediaType | null>(null);
-  const [newDirType, setNewDirType] = useState<MediaType | null>(null);
-  const [newDirName, setNewDirName] = useState("");
   const [selectedDir, setSelectedDir] = useState<Record<MediaType, string>>({ video: "", youtube: "", image: "" });
+  const [dirDialog, setDirDialog] = useState<{ mode: "create" | "rename"; type: MediaType; id?: string; name: string } | null>(null);
+  const [menuDir, setMenuDir] = useState<string | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [youtubeTitle, setYoutubeTitle] = useState("");
   const videoInput = useRef<HTMLInputElement>(null);
@@ -65,14 +77,15 @@ export default function MediaManager({ isAdmin }: { isAdmin: boolean }) {
   const load = useCallback(async () => {
     if (!isAdmin) return;
     try {
-      setError("");
       const response = await fetch("/api/media", { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || `미디어 서버 오류 (${response.status})`);
       setDirectories(data.directories || []);
       setItems(data.items || []);
+      setError("");
     } catch (e) {
-      setDirectories([]); setItems([]);
+      setDirectories([]);
+      setItems([]);
       setError(e instanceof Error ? e.message : "미디어 데이터를 불러오지 못했습니다.");
     }
   }, [isAdmin]);
@@ -86,7 +99,10 @@ export default function MediaManager({ isAdmin }: { isAdmin: boolean }) {
     };
     window.addEventListener("dragover", preventBrowserFileOpen);
     window.addEventListener("drop", preventBrowserFileOpen);
-    return () => { window.removeEventListener("dragover", preventBrowserFileOpen); window.removeEventListener("drop", preventBrowserFileOpen); };
+    return () => {
+      window.removeEventListener("dragover", preventBrowserFileOpen);
+      window.removeEventListener("drop", preventBrowserFileOpen);
+    };
   }, [isAdmin]);
 
   if (!isAdmin) {
@@ -96,20 +112,43 @@ export default function MediaManager({ isAdmin }: { isAdmin: boolean }) {
   const dirs = (type: MediaType) => directories.filter((d) => d.media_type === type);
   const visibleItems = (type: MediaType) => items.filter((item) => item.media_type === type && (!selectedDir[type] || item.directory_id === selectedDir[type]));
 
-  async function createDirectory() {
-    if (!newDirType || !newDirName.trim()) return;
+  async function createOrRenameDirectory() {
+    if (!dirDialog || !dirDialog.name.trim()) return;
     try {
       setBusy(true); setError("");
-      const response = await fetch("/api/media", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "directory", mediaType: newDirType, name: newDirName.trim() }) });
+      const method = dirDialog.mode === "create" ? "POST" : "PATCH";
+      const body = dirDialog.mode === "create"
+        ? { action: "directory", mediaType: dirDialog.type, name: dirDialog.name.trim() }
+        : { id: dirDialog.id, name: dirDialog.name.trim() };
+      const response = await fetch("/api/media", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || `디렉토리 생성 오류 (${response.status})`);
-      const directory = { id: data.id, media_type: newDirType, name: data.name } as Directory;
-      setDirectories((current) => [...current, directory]);
-      setSelectedDir((current) => ({ ...current, [newDirType]: directory.id }));
-      setNewDirName(""); setNewDirType(null);
+      if (!response.ok) throw new Error(data.error || "디렉토리 저장에 실패했습니다.");
+      if (dirDialog.mode === "create") {
+        const directory = { id: data.id, media_type: dirDialog.type, name: data.name } as Directory;
+        setDirectories((current) => [...current, directory]);
+        setSelectedDir((current) => ({ ...current, [dirDialog.type]: directory.id }));
+      } else {
+        setDirectories((current) => current.map((d) => d.id === dirDialog.id ? { ...d, name: dirDialog.name.trim() } : d));
+      }
+      setDirDialog(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "디렉토리를 만들지 못했습니다.");
+      setError(e instanceof Error ? e.message : "디렉토리를 저장하지 못했습니다.");
     } finally { setBusy(false); }
+  }
+
+  async function deleteDirectory(directory: Directory) {
+    if (!window.confirm(`'${directory.name}' 디렉토리를 삭제하시겠습니까?\n디렉토리 안의 저장된 파일과 링크도 함께 삭제됩니다.`)) return;
+    try {
+      setBusy(true); setError("");
+      const response = await fetch(`/api/media?id=${encodeURIComponent(directory.id)}&directory=1`, { method: "DELETE" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "디렉토리를 삭제하지 못했습니다.");
+      setDirectories((current) => current.filter((d) => d.id !== directory.id));
+      setItems((current) => current.filter((item) => item.directory_id !== directory.id));
+      setSelectedDir((current) => ({ ...current, [directory.media_type]: current[directory.media_type] === directory.id ? "" : current[directory.media_type] }));
+      setMenuDir(null);
+    } catch (e) { setError(e instanceof Error ? e.message : "디렉토리를 삭제하지 못했습니다."); }
+    finally { setBusy(false); }
   }
 
   async function saveItem(payload: Record<string, unknown>) {
@@ -119,26 +158,42 @@ export default function MediaManager({ isAdmin }: { isAdmin: boolean }) {
   }
 
   async function uploadFile(file: File, type: "video" | "image") {
-    if (!file || !file.type.startsWith(type === "video" ? "video/" : "image/")) { setError(type === "video" ? "동영상 파일만 넣어주세요." : "이미지 파일만 넣어주세요."); return; }
+    const expected = type === "video" ? "video/" : "image/";
+    if (!file.type.startsWith(expected)) { setError(type === "video" ? "동영상 파일만 넣어주세요." : "이미지 파일만 넣어주세요."); return; }
     const defaultTitle = file.name.replace(/\.[^.]+$/, "");
     const title = window.prompt("저장할 제목을 입력하세요", defaultTitle)?.trim();
     if (!title) return;
     try {
       setBusy(true); setError("");
-      const result = await upload(`media/${type}/${Date.now()}-${file.name.replace(/[^\w가-힣.()-]/g, "_")}`, file, { access: "public", handleUploadUrl: "/api/media/upload", multipart: true, onUploadProgress: (progress) => setError(`${LABELS[type]} 업로드 중 ${Math.round(progress.percentage)}%`) });
+      const safeName = file.name.replace(/[^\w가-힣.()-]/g, "_");
+      const result = await upload(`media/${type}/${Date.now()}-${safeName}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/media/upload",
+        multipart: true,
+        onUploadProgress: (progress) => setError(`${LABELS[type]} 업로드 중 ${Math.round(progress.percentage)}%`),
+      });
       await saveItem({ mediaType: type, title, directoryId: selectedDir[type] || null, fileUrl: result.url, blobPathname: result.pathname, mimeType: file.type, sizeBytes: file.size });
-      setError(""); await load();
-    } catch (e) { setError(e instanceof Error ? e.message : "파일 업로드에 실패했습니다."); }
-    finally { setBusy(false); }
+      await load();
+      setError("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "파일 업로드에 실패했습니다.");
+    } finally { setBusy(false); }
   }
 
-  async function handleFiles(files: FileList | File[], type: "video" | "image") { for (const file of Array.from(files)) await uploadFile(file, type); }
+  async function handleFiles(files: FileList | File[], type: "video" | "image") {
+    for (const file of Array.from(files)) await uploadFile(file, type);
+  }
+
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>, type: "video" | "image") {
+    if (event.target.files?.length) await handleFiles(event.target.files, type);
+    event.target.value = "";
+  }
 
   async function handleDrop(event: DragEvent<HTMLDivElement>, type: MediaType) {
     event.preventDefault(); event.stopPropagation(); setDragOver(null);
     if (type === "youtube") {
-      const url = (event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain") || "").trim();
-      if (url) setYoutubeUrl(url);
+      const raw = (event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain") || "").trim();
+      if (raw) setYoutubeUrl(raw.split("\n")[0]);
       return;
     }
     if (event.dataTransfer.files?.length) await handleFiles(event.dataTransfer.files, type);
@@ -155,66 +210,95 @@ export default function MediaManager({ isAdmin }: { isAdmin: boolean }) {
     finally { setBusy(false); }
   }
 
-  async function removeItem(id: string) {
-    if (!window.confirm("이 콘텐츠를 삭제할까요?")) return;
+  async function removeItem(item: MediaItem) {
+    if (!window.confirm(`'${item.title}'을(를) 삭제하시겠습니까?`)) return;
     try {
-      const response = await fetch(`/api/media?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      setBusy(true); setError("");
+      const response = await fetch(`/api/media?id=${encodeURIComponent(item.id)}`, { method: "DELETE" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "삭제하지 못했습니다.");
-      await load();
+      setItems((current) => current.filter((row) => row.id !== item.id));
     } catch (e) { setError(e instanceof Error ? e.message : "삭제하지 못했습니다."); }
+    finally { setBusy(false); }
   }
 
   function dragHandlers(type: MediaType) {
     return {
       onDragEnter: (event: DragEvent<HTMLDivElement>) => { event.preventDefault(); event.stopPropagation(); setDragOver(type); },
       onDragOver: (event: DragEvent<HTMLDivElement>) => { event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = type === "youtube" ? "link" : "copy"; setDragOver(type); },
-      onDragLeave: (event: DragEvent<HTMLDivElement>) => { event.preventDefault(); event.stopPropagation(); if (event.currentTarget === event.target) setDragOver(null); },
-      onDrop: (event: DragEvent<HTMLDivElement>) => handleDrop(event, type),
+      onDragLeave: (event: DragEvent<HTMLDivElement>) => { event.preventDefault(); event.stopPropagation(); setDragOver(null); },
+      onDrop: (event: DragEvent<HTMLDivElement>) => { void handleDrop(event, type); },
     };
   }
 
+  function folderMenu(type: MediaType, directory: Directory) {
+    return menuDir === directory.id ? <div style={{ position: "absolute", right: 4, top: 29, zIndex: 5, width: 100, background: "#fff", border: "1px solid #d5e0ed", borderRadius: 6, boxShadow: "0 5px 18px rgba(20,50,90,.12)", padding: 3 }}>
+      <button type="button" style={{ ...styles.folder, width: "100%" }} onClick={() => { setDirDialog({ mode: "rename", type, id: directory.id, name: directory.name }); setMenuDir(null); }}>✎ 이름 변경</button>
+      <button type="button" style={{ ...styles.folder, width: "100%", color: "#d83b3b" }} onClick={() => void deleteDirectory(directory)}>⌫ 삭제</button>
+    </div> : null;
+  }
+
   function card(type: MediaType) {
-    const typeDirs = dirs(type), list = visibleItems(type), selected = selectedDir[type];
+    const typeDirs = dirs(type);
+    const list = visibleItems(type);
+    const selected = selectedDir[type];
     return <section style={styles.card} key={type}>
-      <div style={styles.cardHead}><div><h3 style={styles.heading}>{LABELS[type]}</h3><p style={styles.sub}>{type === "video" ? "일반 동영상 파일을 저장합니다." : type === "youtube" ? "YouTube URL을 저장하고 임베드로 재생합니다." : "이미지 파일을 저장합니다."}</p></div><button type="button" style={styles.ghost} onClick={() => { setNewDirType(type); setNewDirName(""); }}>＋ 새 디렉토리</button></div>
+      <div style={styles.cardHead}>
+        <div><h3 style={styles.heading}>{LABELS[type]}</h3><p style={styles.sub}>{type === "video" ? "일반 동영상 파일을 저장합니다." : type === "youtube" ? "YouTube URL을 저장하고 임베드로 재생합니다." : "이미지 파일을 저장합니다."}</p></div>
+        <button type="button" style={styles.ghost} disabled={busy} onClick={() => setDirDialog({ mode: "create", type, name: "" })}>＋ 새 디렉토리</button>
+      </div>
       <div style={styles.body}>
         <aside style={styles.folders}>
-          <button type="button" style={{ ...styles.folder, ...(selected === "" ? styles.selectedFolder : {}) }} onClick={() => setSelectedDir((current) => ({ ...current, [type]: "" }))}>▣ 전체 {type === "video" ? "동영상" : type === "youtube" ? "YouTube" : "이미지"}</button>
-          {typeDirs.map((directory) => <button type="button" key={directory.id} title={directory.name} style={{ ...styles.folder, ...(selected === directory.id ? styles.selectedFolder : {}) }} onClick={() => setSelectedDir((current) => ({ ...current, [type]: directory.id }))}>▱ {directory.name}</button>)}
-          <button type="button" style={{ ...styles.folder, color: "#2877e5", marginTop: "auto" }} onClick={() => { setNewDirType(type); setNewDirName(""); }}>＋ 새 디렉토리</button>
+          <button type="button" style={{ ...styles.folder, ...(selected === "" ? styles.selectedFolder : {}) }} onClick={() => setSelectedDir((current) => ({ ...current, [type]: "" }))}>▣ 전체 {FOLDER_LABELS[type]}</button>
+          {typeDirs.map((directory) => <div key={directory.id} style={{ position: "relative" }}>
+            <button type="button" style={{ ...styles.folder, width: "100%", paddingRight: 24, ...(selected === directory.id ? styles.selectedFolder : {}) }} onClick={() => setSelectedDir((current) => ({ ...current, [type]: directory.id }))}>📁 {directory.name}</button>
+            <button type="button" aria-label="디렉토리 메뉴" style={{ position: "absolute", right: 2, top: 2, border: 0, background: "transparent", color: "#7189a5", cursor: "pointer", width: 22, height: 24 }} onClick={() => setMenuDir((current) => current === directory.id ? null : directory.id)}>⋮</button>
+            {folderMenu(type, directory)}
+          </div>)}
+          <button type="button" style={{ ...styles.folder, color: "#2877e5", marginTop: "auto" }} onClick={() => setDirDialog({ mode: "create", type, name: "" })}>＋ 새 디렉토리</button>
         </aside>
         <div style={styles.main}>
           {type === "youtube" ? <div {...dragHandlers(type)} style={{ ...styles.drop, ...(dragOver === type ? styles.dropActive : {}) }}>
-            <div style={{ fontSize: 17, color: "#2877e5" }}>↳</div><b style={styles.dropTitle}>YouTube 링크를 여기에 드래그하거나 입력하세요</b>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.5fr) minmax(0,1fr) auto", gap: 4, width: "100%" }}><input style={styles.input} value={youtubeUrl} onChange={(event) => setYoutubeUrl(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." /><input style={styles.input} value={youtubeTitle} onChange={(event) => setYoutubeTitle(event.target.value)} placeholder="영상 제목" /><button type="button" style={styles.button} onClick={() => void addYoutube()} disabled={busy}>추가</button></div>
-            <small style={styles.sub}>브라우저에서 YouTube 링크를 끌어와도 URL이 자동 입력됩니다.</small>
-          </div> : <div {...dragHandlers(type)} style={{ ...styles.drop, ...(dragOver === type ? styles.dropActive : {}) }} onClick={() => (type === "video" ? videoInput : imageInput).current?.click()}>
-            <div style={{ fontSize: 17, color: "#2877e5" }}>⇧</div><b style={styles.dropTitle}>{type === "video" ? "동영상 파일" : "이미지 파일"}을 드래그하거나 업로드하세요</b><small style={styles.sub}>{type === "video" ? "MP4, MOV, WEBM 등" : "JPG, PNG, WEBP, GIF 등"}</small><button type="button" style={styles.button} disabled={busy} onClick={(event) => { event.stopPropagation(); (type === "video" ? videoInput : imageInput).current?.click(); }}>파일 선택</button>
+            <div style={{ fontSize: 18, color: "#e62143" }}>↗</div>
+            <div style={styles.dropTitle}>YouTube 링크를 여기에 드래그하거나 입력하세요</div>
+            <div style={{ display: "flex", width: "100%", gap: 4 }}>
+              <input value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." style={styles.input} />
+              <input value={youtubeTitle} onChange={(e) => setYoutubeTitle(e.target.value)} placeholder="영상 제목" style={styles.input} />
+              <button type="button" style={styles.button} disabled={busy} onClick={() => void addYoutube()}>추가</button>
+            </div>
+            <span style={styles.sub}>YouTube는 파일 저장이 아니라 URL/임베드 방식으로 관리됩니다.</span>
+          </div> : <div {...dragHandlers(type)} style={{ ...styles.drop, ...(dragOver === type ? styles.dropActive : {}) }}>
+            <div style={{ fontSize: 22, color: "#2877e5" }}>⇧</div>
+            <div style={styles.dropTitle}>{type === "video" ? "동영상 파일을 드래그 앤 드롭하세요" : "이미지 파일을 드래그 앤 드롭하세요"}</div>
+            <button type="button" style={styles.button} disabled={busy} onClick={() => (type === "video" ? videoInput.current?.click() : imageInput.current?.click())}>파일 선택</button>
+            <span style={styles.sub}>{type === "video" ? "MP4, MOV, AVI, WEBM 등 · 최대 500MB" : "JPG, PNG, GIF, WEBP 등"}</span>
           </div>}
-          <input ref={videoInput} type="file" accept={ACCEPT.video} multiple style={{ display: "none" }} onChange={(event) => { if (event.target.files) void handleFiles(event.target.files, "video"); event.currentTarget.value = ""; }} />
-          <input ref={imageInput} type="file" accept={ACCEPT.image} multiple style={{ display: "none" }} onChange={(event) => { if (event.target.files) void handleFiles(event.target.files, "image"); event.currentTarget.value = ""; }} />
-          <div style={styles.list}>{list.map((item) => <article key={item.id} style={styles.item}>
-            {type === "video" && item.file_url ? <video src={item.file_url} controls preload="metadata" style={styles.thumb} /> : null}
-            {type === "image" && item.file_url ? <img src={item.file_url} alt={item.title} style={styles.thumb} /> : null}
-            {type === "youtube" && youtubeId(item.youtube_url) ? <iframe title={item.title} src={`https://www.youtube.com/embed/${youtubeId(item.youtube_url)}`} style={{ ...styles.thumb, border: 0 }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /> : null}
-            <div style={styles.meta}><b style={styles.itemTitle}>{item.title}</b><small style={styles.itemInfo}>{type === "youtube" ? item.youtube_url : formatSize(item.size_bytes)}</small><button type="button" style={{ border: 0, background: "transparent", color: "#8a9aaf", fontSize: 9, padding: "3px 0 0", cursor: "pointer" }} onClick={() => void removeItem(item.id)}>삭제</button></div>
-          </article>)}</div>
-          {!list.length && <div style={{ border: "1px dashed #d4dfec", borderRadius: 5, padding: 12, textAlign: "center", fontSize: 9, color: "#9aaabd" }}>저장된 콘텐츠가 없습니다.</div>}
+          {type === "video" && <input ref={videoInput} type="file" accept="video/*" multiple hidden onChange={(e) => void handleFileChange(e, "video")} />}
+          {type === "image" && <input ref={imageInput} type="file" accept="image/*" multiple hidden onChange={(e) => void handleFileChange(e, "image")} />}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><strong style={{ fontSize: 10 }}>{selected ? typeDirs.find((d) => d.id === selected)?.name : `전체 ${FOLDER_LABELS[type]}`}</strong><span style={styles.sub}>총 {list.length}개</span></div>
+          {list.length === 0 ? <div style={{ border: "1px dashed #d5e0ed", borderRadius: 6, padding: "15px 8px", textAlign: "center", color: "#9aaabd", fontSize: 9 }}>저장된 콘텐츠가 없습니다.</div> : <div style={styles.list}>{list.map((item) => {
+            const id = youtubeId(item.youtube_url);
+            return <div key={item.id} style={styles.item}>
+              {type === "youtube" ? <div style={{ width: 72, height: 52, background: "#111", overflow: "hidden" }}>{id ? <img src={`https://i.ytimg.com/vi/${id}/mqdefault.jpg`} alt="YouTube 썸네일" style={styles.thumb} /> : null}</div> : type === "image" ? <img src={item.file_url || ""} alt={item.title} style={styles.thumb} /> : <video src={item.file_url || undefined} style={styles.thumb} muted preload="metadata" />}
+              <div style={styles.meta}><span style={styles.itemTitle}>{item.title}</span><span style={styles.itemInfo}>{formatSize(item.size_bytes)} {item.created_at ? `· ${new Date(item.created_at).toLocaleDateString("ko-KR")}` : ""}</span>{type === "youtube" && item.youtube_url && <a href={item.youtube_url} target="_blank" rel="noreferrer" style={{ fontSize: 8, color: "#2877e5" }}>YouTube 열기 ↗</a>}</div>
+              <button type="button" style={styles.danger} disabled={busy} onClick={() => void removeItem(item)} title="삭제">⌫</button>
+            </div>;
+          })}</div>}
         </div>
       </div>
     </section>;
   }
 
-  return <section style={styles.shell} onDragOver={(event) => { if (event.dataTransfer.types.includes("Files") || event.dataTransfer.types.includes("text/uri-list")) event.preventDefault(); }}>
-    <div style={{ marginBottom: 7 }}><h2 style={{ ...styles.heading, fontSize: 13 }}>동영상 & 이미지</h2><p style={styles.sub}>로그인한 사용자만 디렉토리와 미디어를 저장하고 관리할 수 있습니다.</p></div>
-    {error && <div style={{ margin: "0 0 7px", border: "1px solid #f2b8b8", background: "#fff6f6", color: "#b42318", borderRadius: 5, padding: "7px 9px", fontSize: 9, lineHeight: 1.45 }}>{error}</div>}
-    <div style={styles.grid}>{card("video")}{card("youtube")}{card("image")}</div>
-    {newDirType && <div role="dialog" aria-modal="true" style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,28,52,.35)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onMouseDown={(event) => { if (event.target === event.currentTarget) setNewDirType(null); }}>
-      <div style={{ width: 340, maxWidth: "100%", background: "#fff", borderRadius: 8, border: "1px solid #d6e1ed", boxShadow: "0 12px 35px rgba(0,0,0,.18)", padding: 16 }}>
-        <h3 style={{ margin: "0 0 5px", fontSize: 13, color: "#0b2d5c" }}>{LABELS[newDirType]} 디렉토리 만들기</h3><p style={{ margin: "0 0 12px", fontSize: 9, color: "#7c8da2" }}>디렉토리 이름은 서버 데이터베이스에 저장되며 새로고침 후에도 유지됩니다.</p>
-        <input autoFocus value={newDirName} onChange={(event) => setNewDirName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void createDirectory(); }} placeholder="예: K-뷰티 산업" style={{ ...styles.input, width: "100%", boxSizing: "border-box", height: 34 }} />
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginTop: 12 }}><button type="button" style={styles.ghost} onClick={() => setNewDirType(null)}>취소</button><button type="button" style={styles.button} disabled={busy || !newDirName.trim()} onClick={() => void createDirectory()}>디렉토리 생성</button></div>
+  return <section style={styles.shell}>
+    <div><h2 style={{ ...styles.heading, fontSize: 14 }}>동영상 & 이미지</h2><p style={{ ...styles.sub, fontSize: 9 }}>로그인한 사용자만 디렉토리와 동영상·YouTube·이미지를 저장하고 관리할 수 있습니다.</p></div>
+    {error && <div style={{ marginTop: 7, border: "1px solid #f2c3c3", background: "#fff7f7", color: "#c33", borderRadius: 6, padding: "6px 8px", fontSize: 9 }}>{error}</div>}
+    <div style={styles.grid}>{(["video", "youtube", "image"] as MediaType[]).map(card)}</div>
+    {dirDialog && <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(9,25,45,.32)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ width: 330, background: "#fff", borderRadius: 9, boxShadow: "0 15px 45px rgba(0,0,0,.2)", padding: 16 }}>
+        <h3 style={{ margin: 0, fontSize: 14, color: "#0b2d5c" }}>{dirDialog.mode === "create" ? "새 디렉토리 만들기" : "디렉토리 이름 변경"}</h3>
+        <p style={{ fontSize: 9, color: "#7890ad", margin: "5px 0 10px" }}>{LABELS[dirDialog.type]}</p>
+        <input autoFocus value={dirDialog.name} onChange={(e) => setDirDialog({ ...dirDialog, name: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") void createOrRenameDirectory(); }} placeholder="디렉토리 제목" style={{ ...styles.input, width: "100%", boxSizing: "border-box" }} />
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginTop: 12 }}><button type="button" style={styles.ghost} onClick={() => setDirDialog(null)}>취소</button><button type="button" style={styles.button} disabled={busy || !dirDialog.name.trim()} onClick={() => void createOrRenameDirectory()}>{dirDialog.mode === "create" ? "만들기" : "저장"}</button></div>
       </div>
     </div>}
   </section>;
