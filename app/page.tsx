@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import InteractiveDashboard from "./dashboard/InteractiveDashboard";
-import MediaManager from "./dashboard/MediaManager";
+import MediaManagerBulk from "./dashboard/MediaManagerBulk";
 import { COOKIE_NAME, verifyAuthToken } from "../lib/auth";
 
 export default async function HomePage() {
@@ -11,7 +11,7 @@ export default async function HomePage() {
     <div className="dashboard-shell">
       <InteractiveDashboard isAdmin={isAdmin} />
       <div className="media-page-wrap">
-        <MediaManager isAdmin={isAdmin} />
+        <MediaManagerBulk isAdmin={isAdmin} />
       </div>
     </div>
   );
