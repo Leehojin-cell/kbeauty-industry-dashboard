@@ -1,7 +1,7 @@
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { COOKIE_NAME, verifyAuthToken } from '../../../../lib/auth';
+import { COOKIE_NAME, verifyAuthToken } from '../../../../../lib/auth';
 
 type Sql = NeonQueryFunction<false, false>;
 
