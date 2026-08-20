@@ -9,7 +9,9 @@ export default async function HomePage() {
   return (
     <>
       <InteractiveDashboard isAdmin={isAdmin} />
-      <MediaManager isAdmin={isAdmin} />
+      <div className="media-page-wrap">
+        <MediaManager isAdmin={isAdmin} />
+      </div>
     </>
   );
 }
