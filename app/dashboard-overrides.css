@@ -1,68 +1,70 @@
-/* Keep the original dashboard composition and only tune the media row to the reference image. */
-.bottom { display:grid !important; grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr) !important; gap:10px !important; align-items:start !important; }
-.bottom > .card { min-width:0 !important; }
-.bottom > .card:last-child { position:sticky; top:82px; }
-.bottom > .card:last-child .dropZone { min-height:108px !important; display:flex; flex-direction:column; justify-content:center; border-width:2px !important; }
-.bottom > .card:last-child .chips { min-height:22px; }
-.bottom > .card:first-child .sortBar { justify-content:flex-end; }
-.bottom > .card:first-child table tbody tr[draggable="true"] { cursor:grab; }
-.bottom > .card:first-child table tbody tr[draggable="true"]:active { cursor:grabbing; }
+/* Final layout: one shared canvas for the dashboard and media row. */
+.dashboard-shell{max-width:1280px!important;width:calc(100% - 24px)!important;margin:0 auto!important;padding:0!important;display:flex!important;flex-direction:column!important;}
+.dashboard-shell .k-dashboard{max-width:none!important;width:100%!important;margin:0!important;padding:18px 20px 0!important;box-sizing:border-box!important;}
+.dashboard-shell .k-bottomSectors{display:none!important;}
+.dashboard-shell .media-page-wrap{width:100%!important;max-width:none!important;margin:8px 0 0!important;padding:0 20px 18px!important;box-sizing:border-box!important;}
 
-.k-dashboard { max-width:1280px !important; width:calc(100% - 24px) !important; display:flex !important; flex-direction:column !important; }
-.k-hero,.k-filters,.k-charts,.k-four,.k-bottom { width:100%; }
-.k-four .tr { grid-template-columns:42px minmax(150px,1.7fr) 95px 75px 110px !important; }
-.k-bottom .tr { grid-template-columns:42px minmax(150px,1.6fr) minmax(125px,1.2fr) 100px 100px 75px 110px !important; }
-.k-four .tr strong,.k-bottom .tr strong { display:block !important; min-width:0 !important; white-space:nowrap !important; word-break:keep-all !important; overflow:hidden !important; text-overflow:ellipsis !important; }
+/* Keep the existing dashboard cards intact. */
+.bottom{display:grid!important;grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr)!important;gap:10px!important;align-items:start!important;}
+.bottom>.card{min-width:0!important;}
+.bottom>.card:last-child{position:sticky;top:82px;}
+.bottom>.card:last-child .dropZone{min-height:108px!important;display:flex;flex-direction:column;justify-content:center;border-width:2px!important;}
+.bottom>.card:last-child .chips{min-height:22px;}
+.bottom>.card:first-child .sortBar{justify-content:flex-end;}
+.bottom>.card:first-child table tbody tr[draggable="true"]{cursor:grab;}
+.bottom>.card:first-child table tbody tr[draggable="true"]:active{cursor:grabbing;}
+.k-hero,.k-filters,.k-charts,.k-four,.k-bottom{width:100%;}
+.k-four .tr{grid-template-columns:42px minmax(150px,1.7fr) 95px 75px 110px!important;}
+.k-bottom .tr{grid-template-columns:42px minmax(150px,1.6fr) minmax(125px,1.2fr) 100px 100px 75px 110px!important;}
+.k-four .tr strong,.k-bottom .tr strong{display:block!important;min-width:0!important;white-space:nowrap!important;word-break:keep-all!important;overflow:hidden!important;text-overflow:ellipsis!important;}
 
-/* Reference 2: the media row is a compact final row directly under the dashboard. */
-.media-page-wrap { max-width:1280px !important; width:calc(100% - 24px) !important; margin:0 auto !important; padding:0 0 6px !important; }
-.media-page-wrap .media-manager { margin:4px 0 6px !important; padding:5px !important; border-radius:6px !important; box-shadow:0 1px 4px rgba(30,55,90,.035) !important; }
-.media-page-wrap .media-title { margin:0 2px 3px !important; min-height:14px !important; height:14px !important; }
-.media-page-wrap .media-title h2 { font-size:8px !important; line-height:1 !important; }
-.media-page-wrap .media-title p { font-size:5px !important; line-height:1 !important; margin-top:1px !important; }
-.media-page-wrap .media-grid { grid-template-columns:repeat(3,minmax(0,1fr)) !important; gap:5px !important; }
-.media-page-wrap .media-card { height:118px !important; min-height:118px !important; max-height:118px !important; border-radius:5px !important; }
-.media-page-wrap .media-card-head { height:23px !important; min-height:23px !important; max-height:23px !important; padding:3px 4px !important; }
-.media-page-wrap .media-card-head h3 { font-size:7px !important; line-height:1 !important; }
-.media-page-wrap .media-card-head p { display:none !important; }
-.media-page-wrap .media-add-dir { padding:2px 4px !important; font-size:5px !important; line-height:1 !important; }
-.media-page-wrap .media-body { grid-template-columns:56px minmax(0,1fr) !important; height:95px !important; min-height:95px !important; max-height:95px !important; }
-.media-page-wrap .media-folders { padding:3px 2px !important; gap:0 !important; overflow:hidden !important; }
-.media-page-wrap .media-folders strong,.media-page-wrap .media-folders button { font-size:5px !important; line-height:1.05 !important; }
-.media-page-wrap .media-folders button { padding:2px !important; }
-.media-page-wrap .media-folders .folder-new { margin-top:auto !important; }
-.media-page-wrap .media-main { padding:3px !important; overflow:hidden !important; }
-.media-page-wrap .dropbox { min-height:35px !important; height:35px !important; max-height:35px !important; padding:2px !important; gap:1px !important; border-radius:3px !important; }
-.media-page-wrap .dropbox span { font-size:9px !important; line-height:1 !important; }
-.media-page-wrap .dropbox b { font-size:4.5px !important; line-height:1 !important; }
-.media-page-wrap .dropbox small { display:none !important; }
-.media-page-wrap .dropbox button { font-size:4.5px !important; padding:1px 4px !important; line-height:1 !important; }
-.media-page-wrap .youtube-add .dropbox { min-height:35px !important; height:35px !important; }
-.media-page-wrap .youtube-add .dropbox span { display:none !important; }
-.media-page-wrap .youtube-add input { height:14px !important; min-height:14px !important; font-size:4.5px !important; padding:0 3px !important; }
-.media-page-wrap .youtube-add button { font-size:4.5px !important; padding:1px 4px !important; line-height:1 !important; }
-.media-page-wrap .media-list { margin-top:2px !important; max-height:42px !important; gap:1px !important; overflow:hidden !important; }
-.media-page-wrap .media-item { grid-template-columns:30px minmax(0,1fr) 8px !important; min-height:20px !important; max-height:20px !important; padding:1px !important; gap:2px !important; }
-.media-page-wrap .media-item video,.media-page-wrap .media-item img,.media-page-wrap .yt-thumb { width:30px !important; height:18px !important; }
-.media-page-wrap .media-meta { overflow:hidden !important; }
-.media-page-wrap .media-meta b { font-size:4.5px !important; line-height:1 !important; }
-.media-page-wrap .media-meta small,.media-page-wrap .media-meta a { font-size:3.8px !important; line-height:1 !important; }
-.media-page-wrap .media-delete { font-size:7px !important; }
-.media-page-wrap .media-empty { height:20px !important; min-height:20px !important; padding:2px !important; font-size:4.5px !important; line-height:1 !important; }
-.media-page-wrap .media-manager.locked { min-height:60px !important; }
-.media-page-wrap .media-lock { min-height:48px !important; }
+/* Media is a true final row on the same canvas, with three equal cards. */
+.dashboard-shell .media-manager{margin:0!important;padding:8px!important;border-radius:7px!important;box-shadow:0 2px 8px rgba(30,55,90,.05)!important;box-sizing:border-box!important;}
+.dashboard-shell .media-title{margin:0 2px 6px!important;min-height:18px!important;}
+.dashboard-shell .media-title h2{font-size:11px!important;line-height:1.1!important;}
+.dashboard-shell .media-title p{font-size:6px!important;line-height:1.1!important;margin-top:2px!important;}
+.dashboard-shell .media-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;align-items:stretch!important;}
+.dashboard-shell .media-card{height:165px!important;min-height:165px!important;max-height:165px!important;border-radius:6px!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+.dashboard-shell .media-card-head{height:27px!important;min-height:27px!important;padding:4px 5px!important;box-sizing:border-box!important;}
+.dashboard-shell .media-card-head h3{font-size:8px!important;line-height:1!important;}
+.dashboard-shell .media-card-head p{font-size:5px!important;line-height:1!important;margin-top:2px!important;}
+.dashboard-shell .media-add-dir{font-size:5px!important;padding:2px 5px!important;line-height:1!important;}
+.dashboard-shell .media-body{display:grid!important;grid-template-columns:62px minmax(0,1fr)!important;height:138px!important;min-height:138px!important;max-height:138px!important;}
+.dashboard-shell .media-folders{padding:4px 3px!important;gap:1px!important;overflow:hidden!important;}
+.dashboard-shell .media-folders strong,.dashboard-shell .media-folders button{font-size:5.5px!important;line-height:1.1!important;}
+.dashboard-shell .media-folders button{padding:2px!important;}
+.dashboard-shell .media-folders .folder-new{margin-top:auto!important;}
+.dashboard-shell .media-main{padding:4px!important;min-width:0!important;overflow:hidden!important;}
+.dashboard-shell .dropbox{min-height:47px!important;height:47px!important;max-height:47px!important;padding:3px!important;gap:2px!important;border-radius:4px!important;}
+.dashboard-shell .dropbox span{font-size:11px!important;line-height:1!important;}
+.dashboard-shell .dropbox b{font-size:5.5px!important;line-height:1.1!important;}
+.dashboard-shell .dropbox small{font-size:4.5px!important;line-height:1!important;}
+.dashboard-shell .dropbox button{font-size:5px!important;padding:2px 5px!important;line-height:1!important;}
+.dashboard-shell .youtube-add .dropbox{min-height:47px!important;height:47px!important;align-items:stretch!important;}
+.dashboard-shell .youtube-add input{height:15px!important;min-height:15px!important;font-size:5px!important;padding:0 3px!important;}
+.dashboard-shell .youtube-add button{font-size:5px!important;padding:2px 5px!important;line-height:1!important;}
+.dashboard-shell .media-list{margin-top:3px!important;max-height:55px!important;gap:2px!important;overflow:hidden!important;}
+.dashboard-shell .media-item{grid-template-columns:34px minmax(0,1fr) 9px!important;min-height:25px!important;max-height:25px!important;padding:2px!important;gap:3px!important;}
+.dashboard-shell .media-item video,.dashboard-shell .media-item img,.dashboard-shell .yt-thumb{width:34px!important;height:21px!important;}
+.dashboard-shell .media-meta{overflow:hidden!important;}
+.dashboard-shell .media-meta b{font-size:5.5px!important;line-height:1!important;}
+.dashboard-shell .media-meta small,.dashboard-shell .media-meta a{font-size:4.5px!important;line-height:1!important;}
+.dashboard-shell .media-delete{font-size:7px!important;}
+.dashboard-shell .media-empty{height:24px!important;min-height:24px!important;padding:3px!important;font-size:5px!important;line-height:1!important;}
+.dashboard-shell .media-manager.locked{min-height:72px!important;}
+.dashboard-shell .media-lock{min-height:56px!important;}
 
-@media (max-width:1200px) {
-  .k-dashboard,.media-page-wrap { width:calc(100% - 16px) !important; }
-  .k-four .tr { grid-template-columns:36px minmax(125px,1.6fr) 82px 68px 92px !important; }
-  .k-bottom .tr { grid-template-columns:36px minmax(125px,1.45fr) minmax(105px,1.1fr) 88px 88px 68px 95px !important; }
+@media(max-width:900px){
+  .dashboard-shell{width:calc(100% - 12px)!important;}
+  .dashboard-shell .k-dashboard{padding-left:10px!important;padding-right:10px!important;}
+  .dashboard-shell .media-page-wrap{padding-left:10px!important;padding-right:10px!important;}
+  .dashboard-shell .media-grid{grid-template-columns:1fr 1fr!important;}
+  .dashboard-shell .media-card:last-child{grid-column:1/-1;}
+  .k-four .tr,.k-bottom .tr{min-width:700px;}
+  .k-four .table,.k-bottom .table{overflow-x:auto!important;}
 }
-@media (max-width:900px) {
-  .k-dashboard,.media-page-wrap { width:calc(100% - 12px) !important; }
-  .k-four .tr,.k-bottom .tr { min-width:700px; }
-  .k-four .table,.k-bottom .table { overflow-x:auto !important; }
-  .media-page-wrap .media-grid { grid-template-columns:1fr 1fr !important; }
-  .media-page-wrap .media-card:last-child { grid-column:1 / -1; }
+@media(max-width:720px){
+  .dashboard-shell .media-grid{grid-template-columns:1fr!important;}
+  .dashboard-shell .media-card:last-child{grid-column:auto;}
 }
-@media (max-width:1000px) { .bottom { grid-template-columns:1fr !important; } .bottom > .card:last-child { position:static; } }
-@media (max-width:720px) { .media-page-wrap .media-grid { grid-template-columns:1fr !important; } .media-page-wrap .media-card:last-child { grid-column:auto; } }
+@media(max-width:1000px){.bottom{grid-template-columns:1fr!important;}.bottom>.card:last-child{position:static;}}
