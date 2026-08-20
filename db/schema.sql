@@ -55,7 +55,31 @@ CREATE TABLE IF NOT EXISTS company_memos (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS media_directories (
+  id TEXT PRIMARY KEY,
+  media_type TEXT NOT NULL CHECK (media_type IN ('video','youtube','image')),
+  name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS media_items (
+  id TEXT PRIMARY KEY,
+  directory_id TEXT REFERENCES media_directories(id) ON DELETE SET NULL,
+  media_type TEXT NOT NULL CHECK (media_type IN ('video','youtube','image')),
+  title TEXT NOT NULL,
+  file_url TEXT,
+  blob_pathname TEXT,
+  youtube_url TEXT,
+  mime_type TEXT,
+  size_bytes BIGINT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_companies_category ON companies(category);
 CREATE INDEX IF NOT EXISTS idx_company_research_company ON company_research(company_id);
 CREATE INDEX IF NOT EXISTS idx_company_financials_company_year ON company_financials(company_id, fiscal_year);
 CREATE INDEX IF NOT EXISTS idx_company_memos_company ON company_memos(company_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_media_directories_type ON media_directories(media_type);
+CREATE INDEX IF NOT EXISTS idx_media_items_type ON media_items(media_type);
+CREATE INDEX IF NOT EXISTS idx_media_items_directory ON media_items(directory_id);
