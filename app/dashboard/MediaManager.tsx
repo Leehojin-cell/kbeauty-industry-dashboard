@@ -25,7 +25,7 @@ const s = {
   drop:{border:'1px dashed #9dbff0',borderRadius:8,minHeight:112,display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center',gap:7,padding:10,textAlign:'center',background:'#fbfdff'},
   input:{height:30,border:'1px solid #c7d6e6',borderRadius:6,padding:'0 8px',fontSize:10,outline:'none',minWidth:0,flex:1}, list:{display:'grid',gap:6,maxHeight:205,overflowY:'auto'},
   item:{display:'grid',gridTemplateColumns:'82px minmax(0,1fr) auto',gap:7,alignItems:'center',border:'1px solid #e0e7ef',borderRadius:7,padding:4,background:'#fff'}, thumb:{width:82,height:58,objectFit:'cover',display:'block',borderRadius:5,background:'#eef3f8'}, danger:{width:28,height:28,border:'1px solid #efb5b5',background:'#fff',color:'#d83b3b',borderRadius:5,cursor:'pointer'},
-};
+} as const;
 
 export default function MediaManager({isAdmin}:{isAdmin:boolean}) {
   const [dirs,setDirs]=useState<Directory[]>([]); const [items,setItems]=useState<MediaItem[]>([]); const [selected,setSelected]=useState<Record<MediaType,string>>({video:'',youtube:'',image:''});
