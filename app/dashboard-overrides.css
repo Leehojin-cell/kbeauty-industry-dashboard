@@ -49,113 +49,94 @@
   text-overflow: ellipsis !important;
 }
 
-/* Media section: same visual language as the reference dashboard. */
+/* Put the media manager on the same centered canvas as the dashboard. */
 .media-page-wrap {
   max-width: 1280px;
   width: calc(100% - 24px);
   margin: 0 auto;
-  padding: 0 0 18px;
+  padding: 0 0 12px;
 }
+
+/* Compact media cards to match the reference image's short bottom row. */
 .media-page-wrap .media-manager {
-  margin: 8px 0 18px !important;
-  padding: 10px !important;
-  border-radius: 8px !important;
-  box-shadow: 0 2px 8px rgba(30,55,90,.05) !important;
+  margin: 7px 0 10px !important;
+  padding: 7px !important;
+  border-radius: 7px !important;
+  box-shadow: 0 2px 7px rgba(30,55,90,.05) !important;
 }
 .media-page-wrap .media-title {
-  margin: 0 2px 8px !important;
-  min-height: 28px;
+  margin: 0 2px 5px !important;
+  min-height: 22px !important;
 }
-.media-page-wrap .media-title h2 {
-  font-size: 12px !important;
-}
-.media-page-wrap .media-title p {
-  font-size: 8px !important;
-}
+.media-page-wrap .media-title h2 { font-size: 10px !important; }
+.media-page-wrap .media-title p { font-size: 7px !important; margin-top: 1px !important; }
 .media-page-wrap .media-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 8px !important;
+  gap: 6px !important;
   align-items: stretch !important;
 }
 .media-page-wrap .media-card {
-  height: 276px !important;
-  min-height: 276px !important;
-  border-radius: 7px !important;
+  height: 198px !important;
+  min-height: 198px !important;
+  border-radius: 6px !important;
   display: flex !important;
   flex-direction: column !important;
 }
 .media-page-wrap .media-card-head {
-  height: 43px !important;
-  min-height: 43px !important;
-  padding: 7px 8px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 5px 6px !important;
   align-items: center !important;
 }
-.media-page-wrap .media-card-head h3 {
-  font-size: 10px !important;
-}
-.media-page-wrap .media-card-head p {
-  margin-top: 2px !important;
-  font-size: 7px !important;
-}
-.media-page-wrap .media-add-dir {
-  padding: 3px 6px !important;
-  font-size: 7px !important;
-}
+.media-page-wrap .media-card-head h3 { font-size: 9px !important; }
+.media-page-wrap .media-card-head p { margin-top: 1px !important; font-size: 6px !important; }
+.media-page-wrap .media-add-dir { padding: 2px 5px !important; font-size: 6px !important; }
 .media-page-wrap .media-body {
-  grid-template-columns: 88px minmax(0, 1fr) !important;
-  height: 233px !important;
-  min-height: 233px !important;
+  grid-template-columns: 72px minmax(0, 1fr) !important;
+  height: 164px !important;
+  min-height: 164px !important;
 }
-.media-page-wrap .media-folders {
-  padding: 7px 5px !important;
+.media-page-wrap .media-folders { padding: 5px 4px !important; gap: 1px !important; }
+.media-page-wrap .media-folders strong,
+.media-page-wrap .media-folders button { font-size: 6px !important; }
+.media-page-wrap .media-folders button { padding: 3px !important; line-height: 1.15 !important; }
+.media-page-wrap .media-main { padding: 5px !important; }
+.media-page-wrap .dropbox {
+  min-height: 60px !important;
+  height: 60px !important;
+  padding: 4px !important;
   gap: 2px !important;
 }
-.media-page-wrap .media-folders strong,
-.media-page-wrap .media-folders button {
-  font-size: 7px !important;
-}
-.media-page-wrap .media-main {
-  padding: 7px !important;
-}
-.media-page-wrap .dropbox {
-  min-height: 82px !important;
-  height: 82px !important;
-  padding: 6px !important;
+.media-page-wrap .dropbox span { font-size: 13px !important; }
+.media-page-wrap .dropbox b { font-size: 6px !important; }
+.media-page-wrap .dropbox small { font-size: 5px !important; }
+.media-page-wrap .dropbox button { font-size: 6px !important; padding: 2px 6px !important; }
+.media-page-wrap .youtube-add input { height: 19px !important; font-size: 6px !important; padding: 0 4px !important; }
+.media-page-wrap .youtube-add button { font-size: 6px !important; padding: 3px 6px !important; }
+.media-page-wrap .media-list {
+  margin-top: 4px !important;
+  max-height: 70px !important;
   gap: 3px !important;
 }
-.media-page-wrap .dropbox span { font-size: 16px !important; }
-.media-page-wrap .dropbox b { font-size: 7px !important; }
-.media-page-wrap .dropbox small { font-size: 6px !important; }
-.media-page-wrap .dropbox button { font-size: 7px !important; padding: 3px 7px !important; }
-.media-page-wrap .youtube-add input { height: 22px !important; font-size: 7px !important; }
-.media-page-wrap .youtube-add button { font-size: 7px !important; padding: 4px 8px !important; }
-.media-page-wrap .media-list {
-  margin-top: 6px !important;
-  max-height: 122px !important;
-  gap: 4px !important;
-}
 .media-page-wrap .media-item {
-  grid-template-columns: 48px minmax(0, 1fr) 14px !important;
-  min-height: 42px !important;
-  padding: 4px !important;
-  gap: 5px !important;
+  grid-template-columns: 42px minmax(0, 1fr) 12px !important;
+  min-height: 32px !important;
+  padding: 3px !important;
+  gap: 4px !important;
 }
 .media-page-wrap .media-item video,
 .media-page-wrap .media-item img,
 .media-page-wrap .yt-thumb {
-  width: 48px !important;
-  height: 34px !important;
+  width: 42px !important;
+  height: 28px !important;
 }
-.media-page-wrap .media-meta b { font-size: 7px !important; }
+.media-page-wrap .media-meta b { font-size: 6px !important; }
 .media-page-wrap .media-meta small,
-.media-page-wrap .media-meta a { font-size: 6px !important; }
-.media-page-wrap .media-empty { height: 42px !important; font-size: 7px !important; }
-.media-page-wrap .media-manager.locked {
-  min-height: 110px !important;
-}
-.media-page-wrap .media-lock {
-  min-height: 88px !important;
-}
+.media-page-wrap .media-meta a { font-size: 5px !important; }
+.media-page-wrap .media-delete { font-size: 9px !important; }
+.media-page-wrap .media-empty { height: 30px !important; min-height: 30px !important; padding: 5px !important; font-size: 6px !important; }
+.media-page-wrap .media-manager.locked { min-height: 92px !important; }
+.media-page-wrap .media-lock { min-height: 70px !important; }
 
 @media (max-width: 1200px) {
   .k-dashboard,
