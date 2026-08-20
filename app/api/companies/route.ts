@@ -37,8 +37,10 @@ export async function DELETE(request: Request) {
   if (!dbConfigured()) return NextResponse.json({ ok: false, error: "POSTGRES_URL 미설정" }, { status: 503 });
 
   const body = await request.json().catch(() => ({}));
-  const rawIds = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : [];
-  const ids = [...new Set(rawIds.map((id: unknown) => String(id).trim()).filter(Boolean))];
+  const rawIds: unknown[] = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : [];
+  const ids: string[] = Array.from(
+    new Set(rawIds.map((id: unknown) => String(id).trim()).filter((id): id is string => Boolean(id)))
+  );
   if (!ids.length) return NextResponse.json({ ok: false, error: "삭제할 기업 ID가 없습니다." }, { status: 400 });
 
   const result = await sql`DELETE FROM companies WHERE id = ANY(${ids}) RETURNING id, company`;
