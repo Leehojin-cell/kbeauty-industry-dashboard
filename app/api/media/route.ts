@@ -1,20 +1,22 @@
 import { del } from "@vercel/blob";
-import { neon } from "@neondatabase/serverless";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { COOKIE_NAME, verifyAuthToken } from "../../../lib/auth";
+
+type Sql = NeonQueryFunction<false, false>;
 
 async function requireAuth() {
   const store = await cookies();
   return verifyAuthToken(store.get(COOKIE_NAME)?.value);
 }
 
-function getSql() {
+function getSql(): Sql | null {
   const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
   return url ? neon(url) : null;
 }
 
-async function ensureTables(sql: ReturnType<typeof neon>) {
+async function ensureTables(sql: Sql) {
   await sql`CREATE TABLE IF NOT EXISTS media_directories (id TEXT PRIMARY KEY, media_type TEXT NOT NULL, name TEXT NOT NULL, parent_id TEXT REFERENCES media_directories(id) ON DELETE CASCADE, sort_order INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
   await sql`CREATE TABLE IF NOT EXISTS media_items (id TEXT PRIMARY KEY, directory_id TEXT REFERENCES media_directories(id) ON DELETE SET NULL, media_type TEXT NOT NULL, title TEXT NOT NULL, file_url TEXT, blob_pathname TEXT, youtube_url TEXT, thumbnail_url TEXT, mime_type TEXT, size_bytes BIGINT, metadata_json JSONB, sort_order INTEGER NOT NULL DEFAULT 0, deleted_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
   await sql`ALTER TABLE media_directories ADD COLUMN IF NOT EXISTS parent_id TEXT REFERENCES media_directories(id) ON DELETE CASCADE`;
@@ -62,7 +64,7 @@ async function youtubeMetadata(url: string) {
   };
 }
 
-async function directoryRows(sql: ReturnType<typeof neon>, mediaType?: string) {
+async function directoryRows(sql: Sql, mediaType?: string) {
   if (mediaType) return sql`SELECT id, media_type, name, parent_id, sort_order, created_at FROM media_directories WHERE media_type = ${mediaType} ORDER BY sort_order ASC, name ASC`;
   return sql`SELECT id, media_type, name, parent_id, sort_order, created_at FROM media_directories ORDER BY media_type ASC, sort_order ASC, name ASC`;
 }
