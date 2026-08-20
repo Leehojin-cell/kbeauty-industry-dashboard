@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS media_directories (
   id TEXT PRIMARY KEY,
   media_type TEXT NOT NULL CHECK (media_type IN ('video','youtube','image')),
   name TEXT NOT NULL,
+  parent_id TEXT REFERENCES media_directories(id) ON DELETE CASCADE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -66,20 +68,31 @@ CREATE TABLE IF NOT EXISTS media_directories (
 CREATE TABLE IF NOT EXISTS media_items (
   id TEXT PRIMARY KEY,
   directory_id TEXT REFERENCES media_directories(id) ON DELETE SET NULL,
-  media_type TEXT NOT NULL CHECK (media_type IN ('video','youtube','image')),
+  media_type TEXT NOT NULL CHECK (media_type IN ('video','youtube','image','pdf')),
   title TEXT NOT NULL,
   file_url TEXT,
   blob_pathname TEXT,
   youtube_url TEXT,
+  thumbnail_url TEXT,
   mime_type TEXT,
   size_bytes BIGINT,
+  metadata_json JSONB,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE media_directories ADD COLUMN IF NOT EXISTS parent_id TEXT REFERENCES media_directories(id) ON DELETE CASCADE;
+ALTER TABLE media_directories ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE media_items ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
+ALTER TABLE media_items ADD COLUMN IF NOT EXISTS metadata_json JSONB;
+ALTER TABLE media_items ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE media_items ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_companies_category ON companies(category);
 CREATE INDEX IF NOT EXISTS idx_company_research_company ON company_research(company_id);
 CREATE INDEX IF NOT EXISTS idx_company_financials_company_year ON company_financials(company_id, fiscal_year);
 CREATE INDEX IF NOT EXISTS idx_company_memos_company ON company_memos(company_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_media_directories_type ON media_directories(media_type);
+CREATE INDEX IF NOT EXISTS idx_media_directories_type ON media_directories(media_type, parent_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_media_items_type ON media_items(media_type);
-CREATE INDEX IF NOT EXISTS idx_media_items_directory ON media_items(directory_id);
+CREATE INDEX IF NOT EXISTS idx_media_items_directory ON media_items(directory_id, sort_order);
