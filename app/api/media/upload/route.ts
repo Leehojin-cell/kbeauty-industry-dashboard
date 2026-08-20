@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       request,
       body,
       onBeforeGenerateToken: async () => ({
-        allowedContentTypes: ["video/*", "image/*"],
+        allowedContentTypes: ["video/*", "image/*", "application/pdf"],
         maximumSizeInBytes: 500 * 1024 * 1024,
         addRandomSuffix: true,
       }),
