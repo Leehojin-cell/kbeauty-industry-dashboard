@@ -7,8 +7,16 @@ export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
   const authenticated = await verifyAuthToken(cookieStore.get(COOKIE_NAME)?.value);
   if (!authenticated) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = (await request.json()) as HandleUploadBody;
+
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json({
+      error: "Vercel Blob이 연결되지 않았습니다. Vercel 프로젝트의 Storage에서 Blob Store를 연결하고 BLOB_READ_WRITE_TOKEN을 Production에 설정한 뒤 재배포해주세요.",
+      code: "BLOB_READ_WRITE_TOKEN_MISSING",
+    }, { status: 503 });
+  }
+
   try {
+    const body = (await request.json()) as HandleUploadBody;
     const jsonResponse = await handleUpload({
       token: process.env.BLOB_READ_WRITE_TOKEN,
       request,
