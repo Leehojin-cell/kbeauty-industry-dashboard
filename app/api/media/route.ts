@@ -8,6 +8,10 @@ async function requireAuth() {
   return verifyAuthToken(store.get(COOKIE_NAME)?.value);
 }
 
+function dbConfigured() {
+  return Boolean(process.env.POSTGRES_URL);
+}
+
 async function ensureTables() {
   await sql`CREATE TABLE IF NOT EXISTS media_directories (id TEXT PRIMARY KEY, media_type TEXT NOT NULL, name TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
   await sql`CREATE TABLE IF NOT EXISTS media_items (id TEXT PRIMARY KEY, directory_id TEXT REFERENCES media_directories(id) ON DELETE SET NULL, media_type TEXT NOT NULL, title TEXT NOT NULL, file_url TEXT, blob_pathname TEXT, youtube_url TEXT, mime_type TEXT, size_bytes BIGINT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
@@ -21,9 +25,16 @@ function errorMessage(error: unknown) {
   try { return JSON.stringify(error); } catch { return "알 수 없는 서버 오류"; }
 }
 
+function missingDbResponse() {
+  return NextResponse.json({
+    error: "미디어 서버 저장을 사용하려면 Vercel 프로젝트에 PostgreSQL을 연결하고 POSTGRES_URL을 Production 환경변수로 설정해야 합니다.",
+    code: "POSTGRES_URL_MISSING",
+  }, { status: 503 });
+}
+
 export async function GET() {
   if (!(await requireAuth())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!process.env.POSTGRES_URL) return NextResponse.json({ directories: [], items: [], warning: "POSTGRES_URL이 설정되지 않았습니다." });
+  if (!dbConfigured()) return missingDbResponse();
   try {
     await ensureTables();
     const [directories, items] = await Promise.all([
@@ -38,20 +49,26 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   if (!(await requireAuth())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!process.env.POSTGRES_URL) return NextResponse.json({ error: "POSTGRES_URL이 설정되지 않았습니다. Vercel 프로젝트의 데이터베이스 환경변수를 확인해주세요." }, { status: 500 });
+  if (!dbConfigured()) return missingDbResponse();
   try {
     await ensureTables();
     const body = await request.json();
     if (body.action === "directory") {
-      const mediaType = String(body.mediaType || ""); const name = String(body.name || "").trim();
-      if (!["video", "youtube", "image"].includes(mediaType) || !name) return NextResponse.json({ error: "잘못된 디렉토리 정보입니다." }, { status: 400 });
+      const mediaType = String(body.mediaType || "");
+      const name = String(body.name || "").trim();
+      if (!["video", "youtube", "image"].includes(mediaType) || !name) {
+        return NextResponse.json({ error: "잘못된 디렉토리 정보입니다." }, { status: 400 });
+      }
       const id = crypto.randomUUID();
       await sql`INSERT INTO media_directories (id, media_type, name) VALUES (${id}, ${mediaType}, ${name})`;
       return NextResponse.json({ id, mediaType, name });
     }
     if (body.action === "item") {
-      const mediaType = String(body.mediaType || ""); const title = String(body.title || "").trim();
-      if (!["video", "youtube", "image"].includes(mediaType) || !title) return NextResponse.json({ error: "잘못된 콘텐츠 정보입니다." }, { status: 400 });
+      const mediaType = String(body.mediaType || "");
+      const title = String(body.title || "").trim();
+      if (!["video", "youtube", "image"].includes(mediaType) || !title) {
+        return NextResponse.json({ error: "잘못된 콘텐츠 정보입니다." }, { status: 400 });
+      }
       const id = crypto.randomUUID();
       await sql`INSERT INTO media_items (id, directory_id, media_type, title, file_url, blob_pathname, youtube_url, mime_type, size_bytes) VALUES (${id}, ${body.directoryId || null}, ${mediaType}, ${title}, ${body.fileUrl || null}, ${body.blobPathname || null}, ${body.youtubeUrl || null}, ${body.mimeType || null}, ${body.sizeBytes ? Number(body.sizeBytes) : null})`;
       return NextResponse.json({ id });
@@ -64,7 +81,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   if (!(await requireAuth())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!process.env.POSTGRES_URL) return NextResponse.json({ error: "POSTGRES_URL이 설정되지 않았습니다." }, { status: 500 });
+  if (!dbConfigured()) return missingDbResponse();
   try {
     await ensureTables();
     const id = new URL(request.url).searchParams.get("id");
